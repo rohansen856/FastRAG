@@ -1,0 +1,2 @@
+{"id":"refund-period","query":"What is the refund period?","reference_answer":"30 days","answerable":true,"relevant_chunk_ids":["replace-with-real-chunk-uuid"],"reference_contexts":["Customers may request a refund within 30 days."],"category":"factual"}
+{"id":"unsupported-ceo","query":"Who is the CEO's favorite musician?","reference_answer":null,"answerable":false,"relevant_chunk_ids":[],"reference_contexts":[],"category":"no-answer"}
