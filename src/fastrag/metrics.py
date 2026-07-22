@@ -20,3 +20,18 @@ STAGE_LATENCY = Histogram(
     ["stage"],
     buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.2, 0.4, 0.75, 1, 2, 5, 10),
 )
+RETRIES = Counter(
+    "fastrag_provider_retries_total",
+    "Provider calls retried by provider and reason",
+    ["provider", "reason"],
+)
+CIRCUIT_TRIPS = Counter(
+    "fastrag_circuit_breaker_trips_total", "Circuit breaker openings by provider", ["provider"]
+)
+FALLBACKS = Counter(
+    "fastrag_generator_fallbacks_total", "Generator fallbacks to the secondary provider", ["reason"]
+)
+GUARDRAIL_BLOCKS = Counter(
+    "fastrag_guardrail_blocks_total", "Requests refused by an input guardrail", ["rule"]
+)
+CRAG_ACTIONS = Counter("fastrag_crag_actions_total", "CRAG corrective actions taken", ["action"])
