@@ -1,0 +1,22 @@
+groups:
+  - name: fastrag-slos
+    rules:
+      - alert: FastRAGHighTTFT
+        expr: histogram_quantile(0.95, sum by (le) (rate(fastrag_time_to_first_answer_chunk_seconds_bucket[5m]))) > 2
+        for: 10m
+        labels: {severity: page}
+        annotations:
+          summary: FastRAG p95 time to first validated answer exceeds 2 seconds
+      - alert: FastRAGErrorSpike
+        expr: sum(rate(fastrag_query_failures_total[5m])) > 0.5
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: FastRAG query failures are elevated
+      - alert: FastRAGNoTraffic
+        expr: absent(rate(fastrag_queries_total[15m]))
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: FastRAG metrics are unavailable or no queries are completing
+

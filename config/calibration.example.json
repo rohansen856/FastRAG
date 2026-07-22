@@ -1,0 +1,8 @@
+{
+  "reranker_threshold": 0.5,
+  "reranker_fingerprint": "generated-by-python-m-fastrag.calibrate",
+  "embedding_fingerprint": "generated-by-python-m-fastrag.calibrate",
+  "false_answer_rate": 0.05,
+  "sample_count": 30,
+  "cache_distance_threshold": 0.1
+}

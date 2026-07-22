@@ -1,0 +1,10 @@
+{$FASTRAG_DOMAIN:localhost} {
+  encode zstd gzip
+  reverse_proxy api:8000
+}
+
+{$LANGFUSE_DOMAIN:langfuse.localhost} {
+  encode zstd gzip
+  reverse_proxy langfuse-web:3000
+}
+

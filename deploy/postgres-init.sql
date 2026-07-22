@@ -1,0 +1,3 @@
+CREATE DATABASE fastrag;
+CREATE DATABASE langfuse;
+

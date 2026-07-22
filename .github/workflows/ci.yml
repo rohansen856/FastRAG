@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --extra dev
+      - run: uv run ruff check .
+      - run: uv run mypy
+      - run: uv run pytest --cov=fastrag --cov-report=term-missing
+      - name: Validate Compose
+        env:
+          FASTRAG_QUERY_API_KEY: test-query-key
+          FASTRAG_ADMIN_API_KEY: test-admin-key
+          FASTRAG_LLM_BASE_URL: https://example.invalid/v1
+          FASTRAG_LLM_API_KEY: test
+          FASTRAG_LLM_MODEL: test
+          FASTRAG_DENSE_MODEL_REVISION: test
+          FASTRAG_DENSE_MODEL_SHA256: test
+          FASTRAG_RERANKER_REVISION: test
+          FASTRAG_RERANKER_SHA256: test
+          APP_REDIS_PASSWORD: test
+          POSTGRES_PASSWORD: test
+          LANGFUSE_REDIS_PASSWORD: test
+          LANGFUSE_SALT: test
+          LANGFUSE_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+          LANGFUSE_NEXTAUTH_SECRET: test
+          MINIO_ROOT_PASSWORD: test
+          LANGFUSE_PUBLIC_KEY: pk-lf-test
+          LANGFUSE_SECRET_KEY: sk-lf-test
+          LANGFUSE_INIT_USER_EMAIL: admin@example.com
+          LANGFUSE_INIT_USER_PASSWORD: test
+          GRAFANA_ADMIN_PASSWORD: test
+        run: docker compose config --quiet
+
+  golden-gate:
+    runs-on: [self-hosted, fastrag-eval]
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --extra eval
+      - run: uv run python scripts/check-golden.py
+      - name: Run full RAGAS regression
+        env:
+          FASTRAG_ENVIRONMENT: production
+          FASTRAG_QUERY_API_KEY: ${{ secrets.FASTRAG_QUERY_API_KEY }}
+          FASTRAG_QDRANT_URL: ${{ secrets.FASTRAG_EVAL_QDRANT_URL }}
+          FASTRAG_LLM_BASE_URL: ${{ secrets.FASTRAG_LLM_BASE_URL }}
+          FASTRAG_LLM_API_KEY: ${{ secrets.FASTRAG_LLM_API_KEY }}
+          FASTRAG_LLM_MODEL: ${{ secrets.FASTRAG_LLM_MODEL }}
+          FASTRAG_DENSE_MODEL_REVISION: ${{ vars.FASTRAG_DENSE_MODEL_REVISION }}
+          FASTRAG_DENSE_MODEL_SHA256: ${{ vars.FASTRAG_DENSE_MODEL_SHA256 }}
+          FASTRAG_DENSE_MODEL_PATH: ${{ vars.FASTRAG_DENSE_MODEL_PATH }}
+          FASTRAG_RERANKER_REVISION: ${{ vars.FASTRAG_RERANKER_REVISION }}
+          FASTRAG_RERANKER_SHA256: ${{ vars.FASTRAG_RERANKER_SHA256 }}
+          FASTRAG_RERANKER_MODEL_PATH: ${{ vars.FASTRAG_RERANKER_MODEL_PATH }}
+        run: >-
+          uv run python -m fastrag.evaluation
+          --dataset eval/golden.jsonl
+          --api-url ${{ vars.FASTRAG_EVAL_API_URL }}
+          --output eval/results/report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rag-evaluation-report
+          path: eval/results/report.json
