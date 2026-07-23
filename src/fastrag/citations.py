@@ -4,9 +4,9 @@ import re
 from collections.abc import Sequence
 
 from .domain import Chunk, Citation
+from .text import SENTENCE_END_RE
 
 MARKER_RE = re.compile(r"\[C:([A-Za-z0-9_.:-]+)\]")
-SENTENCE_END_RE = re.compile(r"(?<=[.!?])(?:\s+|$)|\n+")
 
 
 class CitationValidationError(ValueError):
