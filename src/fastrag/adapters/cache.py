@@ -18,6 +18,15 @@ def normalize_query(query: str) -> str:
     return " ".join(query.casefold().split())
 
 
+def _module_missing(exc: ResponseError) -> bool:
+    return "unknown command" in str(exc).casefold()
+
+
+def _index_missing(exc: ResponseError) -> bool:
+    message = str(exc).casefold()
+    return "unknown index name" in message or "no such index" in message
+
+
 class RedisAnswerCache:
     def __init__(
         self,
@@ -27,6 +36,7 @@ class RedisAnswerCache:
         dimension: int,
         ttl_seconds: int,
         distance_threshold: float | None,
+        semantic_enabled: bool = True,
     ) -> None:
         self._redis = Redis.from_url(redis_url, decode_responses=False)
         fingerprint_prefix = embedding_fingerprint[:16]
@@ -35,13 +45,31 @@ class RedisAnswerCache:
         self._dimension = dimension
         self._ttl = ttl_seconds
         self._threshold = distance_threshold
+        self._semantic_enabled = semantic_enabled
+
+    @property
+    def semantic_enabled(self) -> bool:
+        return self._semantic_enabled
 
     async def initialize(self) -> None:
+        """Create the vector index, degrading to exact-only if unsupported.
+
+        Managed Redis without the search module (Upstash, for example) rejects
+        FT.* outright. The exact cache still works there, so we disable the
+        semantic tier rather than failing startup.
+        """
+        if not self._semantic_enabled:
+            return
         try:
             await self._redis.execute_command("FT.INFO", self._index_name)
+            return
         except ResponseError as exc:
-            if "Unknown index name" not in str(exc) and "no such index" not in str(exc).lower():
+            if _module_missing(exc):
+                self._semantic_enabled = False
+                return
+            if not _index_missing(exc):
                 raise
+        try:
             await self._redis.execute_command(
                 "FT.CREATE",
                 self._index_name,
@@ -70,13 +98,17 @@ class RedisAnswerCache:
                 "EF_CONSTRUCTION",
                 200,
             )
+        except ResponseError as exc:
+            if not _module_missing(exc):
+                raise
+            self._semantic_enabled = False
 
     async def get_exact(self, namespace: str, query: str) -> CachedAnswer | None:
         value = await self._redis.get(self._exact_key(namespace, query))
         return self._decode(value, CacheStatus.EXACT) if value else None
 
     async def get_semantic(self, namespace: str, vector: list[float]) -> CachedAnswer | None:
-        if self._threshold is None:
+        if self._threshold is None or not self._semantic_enabled:
             return None
         safe_namespace = re.sub(r"[^A-Za-z0-9_-]", "_", namespace)
         response: list[Any] = await self._redis.execute_command(
@@ -123,7 +155,8 @@ class RedisAnswerCache:
             separators=(",", ":"),
         )
         await self._redis.set(self._exact_key(namespace, query), payload, ex=self._ttl)
-        if semantic and vector is not None and self._threshold is not None:
+        writes_semantic = self._semantic_enabled and self._threshold is not None
+        if semantic and vector is not None and writes_semantic:
             key = f"{self._semantic_prefix}{uuid.uuid4().hex}"
             await self._redis.hset(
                 key,
