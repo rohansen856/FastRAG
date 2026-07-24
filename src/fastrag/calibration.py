@@ -17,6 +17,17 @@ class Calibration:
     false_answer_rate: float
     sample_count: int
     cache_distance_threshold: float | None = None
+    # Upper CRAG band. Scores at or above this are trusted without correction;
+    # scores between `reranker_threshold` and this are ambiguous and get refined.
+    crag_confident_threshold: float | None = None
+    offtopic_threshold: float | None = None
+
+    @property
+    def crag_upper(self) -> float:
+        """Confidence needed to skip correction entirely."""
+        if self.crag_confident_threshold is None:
+            return self.reranker_threshold
+        return max(self.crag_confident_threshold, self.reranker_threshold)
 
     @classmethod
     def load(cls, path: Path) -> Calibration:
@@ -31,6 +42,16 @@ class Calibration:
                 cache_distance_threshold=(
                     float(payload["cache_distance_threshold"])
                     if payload.get("cache_distance_threshold") is not None
+                    else None
+                ),
+                crag_confident_threshold=(
+                    float(payload["crag_confident_threshold"])
+                    if payload.get("crag_confident_threshold") is not None
+                    else None
+                ),
+                offtopic_threshold=(
+                    float(payload["offtopic_threshold"])
+                    if payload.get("offtopic_threshold") is not None
                     else None
                 ),
             )
