@@ -25,13 +25,17 @@ class FastEmbedder:
         self._query_prefix = query_prefix
         self._normalize = normalize
 
-    async def embed_query(self, query: str) -> list[float]:
+    async def embed_query(self, query: str, *, deadline: object = None) -> list[float]:
         vectors = await asyncio.to_thread(
             lambda: list(self._model.query_embed([self._query_prefix + query]))
         )
         return self._as_list(vectors[0])
 
-    async def embed_documents(self, documents: Sequence[str]) -> list[list[float]]:
+    async def embed_documents(
+        self, documents: Sequence[str], *, deadline: object = None
+    ) -> list[list[float]]:
+        if not documents:
+            return []
         vectors = await asyncio.to_thread(lambda: list(self._model.passage_embed(list(documents))))
         return [self._as_list(vector) for vector in vectors]
 
