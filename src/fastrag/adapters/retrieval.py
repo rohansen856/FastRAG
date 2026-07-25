@@ -9,6 +9,12 @@ from ..domain import Chunk, RankedChunk
 
 
 class QdrantHybridRetriever:
+    """Dense + BM25 sparse retrieval fused with reciprocal rank fusion.
+
+    Each retrieval leg pulls `leg_k` candidates so fusion has enough material to
+    reorder; only `limit` survive fusion and go on to the reranker.
+    """
+
     DENSE_VECTOR = "dense"
     SPARSE_VECTOR = "bm25"
 
@@ -19,14 +25,23 @@ class QdrantHybridRetriever:
         *,
         api_key: str | None = None,
         collection_provider: Callable[[], Awaitable[str]] | None = None,
+        leg_k: int = 40,
+        sparse: bool = True,
     ) -> None:
-        from fastembed import SparseTextEmbedding
         from qdrant_client import QdrantClient
 
         self._client: Any = QdrantClient(url=url, api_key=api_key)
         self._collection = collection
         self._collection_provider = collection_provider
-        self._sparse: Any = SparseTextEmbedding(model_name="Qdrant/bm25")
+        self._leg_k = leg_k
+        self._sparse: Any = None
+        if sparse:
+            # Importing fastembed pulls in onnxruntime, which is a meaningful
+            # slice of a 512 MB instance. Hosts that cannot afford it fall back
+            # to dense-only retrieval by disabling sparse.
+            from fastembed import SparseTextEmbedding
+
+            self._sparse = SparseTextEmbedding(model_name="Qdrant/bm25")
 
     async def retrieve(
         self,
@@ -35,6 +50,9 @@ class QdrantHybridRetriever:
         limit: int,
         *,
         collection: str | None = None,
+        strategy: str | None = None,
+        language: str | None = None,
+        deadline: object = None,
     ) -> list[Chunk]:
         selected_collection = collection or (
             await self._collection_provider()
@@ -42,25 +60,60 @@ class QdrantHybridRetriever:
             else self._collection
         )
         return await asyncio.to_thread(
-            self._retrieve_sync, selected_collection, query, vector, limit
+            self._retrieve_sync, selected_collection, query, vector, limit, strategy, language
         )
 
     def _retrieve_sync(
-        self, collection: str, query: str, vector: list[float], limit: int
+        self,
+        collection: str,
+        query: str,
+        vector: list[float],
+        limit: int,
+        strategy: str | None,
+        language: str | None,
     ) -> list[Chunk]:
         from qdrant_client import models
+
+        leg_k = max(self._leg_k, limit)
+        conditions: list[Any] = []
+        if strategy:
+            conditions.append(
+                models.FieldCondition(key="strategy", match=models.MatchValue(value=strategy))
+            )
+        if language:
+            conditions.append(
+                models.FieldCondition(key="language", match=models.MatchValue(value=language))
+            )
+        query_filter = models.Filter(must=conditions) if conditions else None
+
+        if self._sparse is None:
+            response = self._client.query_points(
+                collection_name=collection,
+                query=vector,
+                using=self.DENSE_VECTOR,
+                query_filter=query_filter,
+                limit=limit,
+                with_payload=True,
+            )
+            return [self._to_chunk(point) for point in response.points]
 
         sparse = next(iter(self._sparse.query_embed(query)))
         response = self._client.query_points(
             collection_name=collection,
             prefetch=[
-                models.Prefetch(query=vector, using=self.DENSE_VECTOR, limit=limit),
+                models.Prefetch(
+                    query=vector,
+                    using=self.DENSE_VECTOR,
+                    limit=leg_k,
+                    filter=query_filter,
+                ),
                 models.Prefetch(
                     query=models.SparseVector(
                         indices=sparse.indices.tolist(), values=sparse.values.tolist()
                     ),
                     using=self.SPARSE_VECTOR,
-                    limit=limit,
+                    limit=leg_k,
+                    filter=query_filter,
                 ),
             ],
             query=models.FusionQuery(fusion=models.Fusion.RRF),
@@ -95,8 +148,15 @@ class FastEmbedReranker:
         )
 
     async def rerank(
-        self, query: str, candidates: Sequence[Chunk], limit: int
+        self,
+        query: str,
+        candidates: Sequence[Chunk],
+        limit: int,
+        *,
+        deadline: object = None,
     ) -> list[RankedChunk]:
+        if not candidates:
+            return []
         scores = await asyncio.to_thread(
             lambda: list(self._model.rerank(query, [chunk.text for chunk in candidates]))
         )
@@ -109,3 +169,10 @@ class FastEmbedReranker:
             reverse=True,
         )
         return ranked[:limit]
+
+    async def score(self, query: str, texts: Sequence[str]) -> list[float]:
+        """Raw relevance scores, used by CRAG strip refinement."""
+        if not texts:
+            return []
+        scores = await asyncio.to_thread(lambda: list(self._model.rerank(query, list(texts))))
+        return [float(score) for score in scores]
