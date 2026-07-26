@@ -2,18 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import re
-import uuid
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from llama_index.core import SimpleDirectoryReader
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.schema import MetadataMode
-
+from .bootstrap import CENTROID_PATH
+from .chunking import SourceDocument, build_strategy, chunk_document
 from .fingerprint import EmbeddingFingerprint
+from .guardrails import corpus_centroid
 from .ports import Embedder
 from .registry import IndexManifest, PostgresIndexRegistry
 
@@ -35,6 +34,8 @@ class IndexBuilder:
         registry: PostgresIndexRegistry,
         chunk_size: int = 400,
         chunk_overlap: int = 50,
+        strategies: Sequence[str] = ("sentence",),
+        batch_size: int = 24,
     ) -> None:
         from fastembed import SparseTextEmbedding
         from qdrant_client import QdrantClient
@@ -48,15 +49,50 @@ class IndexBuilder:
         self._registry = registry
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
+        self._strategy_names = tuple(strategies)
+        self._batch_size = batch_size
+
+    def _strategies(self) -> list[Any]:
+        return [
+            build_strategy(
+                name,
+                embedder=self._embedder,
+                chunk_size=self._chunk_size,
+                chunk_overlap=self._chunk_overlap,
+            )
+            for name in self._strategy_names
+        ]
 
     async def rebuild(self, paths: Sequence[Path], *, version: str | None = None) -> IndexManifest:
         files = sorted(path.resolve() for path in paths if path.is_file())
         if not files:
             raise IndexBuildError("no supported documents found")
         content_version = await asyncio.to_thread(self._content_digest, files)
+        documents = await asyncio.to_thread(self._load_documents, files)
+        chunks = await self._chunk(documents)
+        return await self.build_from_chunks(
+            chunks, content_version=content_version, version=version
+        )
+
+    async def build_from_chunks(
+        self,
+        chunks: Sequence[dict[str, Any]],
+        *,
+        content_version: str,
+        version: str | None = None,
+    ) -> IndexManifest:
+        """Index pre-chunked payloads.
+
+        Split out from `rebuild` so the corpus script can stream MS MARCO
+        passages in without first writing them to disk, which the Render free
+        tier's ephemeral filesystem could not hold anyway.
+        """
+        if not chunks:
+            raise IndexBuildError("no chunks to index")
         index_version = version or content_version[:12]
         safe_version = re.sub(r"[^a-zA-Z0-9_-]", "-", index_version)
         collection = f"kb_{safe_version}"
+        languages = sorted({str(chunk.get("language", "unknown")) for chunk in chunks})
         manifest = IndexManifest(
             index_version=index_version,
             collection_name=collection,
@@ -64,62 +100,71 @@ class IndexBuilder:
             embedding_fingerprint=self._fingerprint.digest,
             chunk_size=self._chunk_size,
             chunk_overlap=self._chunk_overlap,
+            chunk_strategies=self._strategy_names,
+            languages=tuple(languages),
+            chunk_count=len(chunks),
         )
         await self._registry.register(manifest)
         try:
-            chunks = await asyncio.to_thread(self._load_and_chunk, files)
             await asyncio.to_thread(self._create_collection, collection)
-            await self._upload(collection, chunks)
+            vectors = await self._upload(collection, chunks)
             await asyncio.to_thread(self._validate_collection, collection, len(chunks))
             await self._registry.mark_validated(index_version)
             await asyncio.to_thread(self._activate_alias, collection)
             await self._registry.activate(index_version)
+            self._write_centroid(vectors)
+            if vectors:
+                await self._registry.store_centroid(index_version, corpus_centroid(vectors))
         except Exception:
             await self._registry.mark_failed(index_version)
             raise
         return replace(manifest, state="active")
 
-    def _load_and_chunk(self, files: Sequence[Path]) -> list[dict[str, Any]]:
-        documents = SimpleDirectoryReader(input_files=[str(path) for path in files]).load_data()
-        splitter = SentenceSplitter(
-            chunk_size=self._chunk_size,
-            chunk_overlap=self._chunk_overlap,
-            include_metadata=True,
-        )
-        nodes = splitter.get_nodes_from_documents(documents)
+    async def _chunk(self, documents: Sequence[SourceDocument]) -> list[dict[str, Any]]:
+        strategies = self._strategies()
         chunks: list[dict[str, Any]] = []
-        for node in nodes:
-            metadata = dict(node.metadata)
+        for document in documents:
+            chunks.extend(await chunk_document(document, strategies))
+        if not chunks:
+            raise IndexBuildError("documents produced no text chunks; OCR may be required")
+        return chunks
+
+    @staticmethod
+    def _load_documents(files: Sequence[Path]) -> list[SourceDocument]:
+        from llama_index.core import SimpleDirectoryReader
+
+        loaded = SimpleDirectoryReader(input_files=[str(path) for path in files]).load_data()
+        documents: list[SourceDocument] = []
+        for item in loaded:
+            metadata = dict(item.metadata)
             source = str(metadata.get("file_path") or metadata.get("file_name") or "unknown")
-            document_id = hashlib.sha256(source.encode()).hexdigest()[:24]
-            text = node.get_content(metadata_mode=MetadataMode.NONE).strip()
+            text = item.text.strip()
             if not text:
                 continue
-            chunk_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{document_id}:{text}"))
             page_value = metadata.get("page_label") or metadata.get("page_number")
             try:
                 page = int(page_value) if page_value is not None else None
             except (TypeError, ValueError):
                 page = None
-            chunks.append(
-                {
-                    "chunk_id": chunk_id,
-                    "document_id": document_id,
-                    "text": text,
-                    "title": str(metadata.get("file_name") or Path(source).name),
-                    "source_uri": source,
-                    "page": page,
-                }
+            documents.append(
+                SourceDocument(
+                    document_id=hashlib.sha256(source.encode()).hexdigest()[:24],
+                    text=text,
+                    title=str(metadata.get("file_name") or Path(source).name),
+                    source_uri=source,
+                    page=page,
+                    metadata=metadata,
+                )
             )
-        if not chunks:
-            raise IndexBuildError("documents produced no text chunks; OCR may be required")
-        return chunks
+        return documents
 
     def _create_collection(self, collection: str) -> None:
         from qdrant_client import models
 
         if self._client.collection_exists(collection):
-            raise IndexBuildError(f"collection already exists: {collection}")
+            # A failed previous attempt of the same content version leaves an
+            # empty-or-partial collection; drop it so ingest can be retried.
+            self._client.delete_collection(collection)
         self._client.create_collection(
             collection_name=collection,
             vectors_config={
@@ -129,16 +174,25 @@ class IndexBuilder:
             hnsw_config=models.HnswConfigDiff(m=16, ef_construct=200),
             on_disk_payload=True,
         )
+        # Strategy and language are filtered on every query, so they need
+        # payload indexes or Qdrant falls back to a full scan.
+        for field in ("strategy", "language"):
+            self._client.create_payload_index(
+                collection_name=collection,
+                field_name=field,
+                field_schema=models.PayloadSchemaType.KEYWORD,
+            )
 
-    async def _upload(self, collection: str, chunks: Sequence[dict[str, Any]]) -> None:
+    async def _upload(self, collection: str, chunks: Sequence[dict[str, Any]]) -> list[list[float]]:
         from qdrant_client import models
 
-        batch_size = 64
-        for offset in range(0, len(chunks), batch_size):
-            batch = list(chunks[offset : offset + batch_size])
+        all_vectors: list[list[float]] = []
+        for offset in range(0, len(chunks), self._batch_size):
+            batch = list(chunks[offset : offset + self._batch_size])
             texts = [item["text"] for item in batch]
             dense = await self._embedder.embed_documents(texts)
             sparse = await asyncio.to_thread(self._sparse_documents, texts)
+            all_vectors.extend(dense)
             points = [
                 models.PointStruct(
                     id=item["chunk_id"],
@@ -159,6 +213,16 @@ class IndexBuilder:
                 points=points,
                 wait=True,
             )
+        return all_vectors
+
+    @staticmethod
+    def _write_centroid(vectors: Sequence[Sequence[float]], path: Path = CENTROID_PATH) -> None:
+        """Persist the corpus centroid used by the off-topic guardrail."""
+        if not vectors:
+            return
+        centroid = corpus_centroid(vectors)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"centroid": centroid, "threshold": None}))
 
     def _sparse_documents(self, texts: list[str]) -> list[Any]:
         return list(self._sparse.passage_embed(texts))
