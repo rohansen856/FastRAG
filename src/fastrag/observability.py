@@ -25,6 +25,29 @@ class NullObservation:
         return None
 
 
+def configure(settings: Any) -> None:
+    """Publish FASTRAG_LANGFUSE_* settings under the names the SDK reads.
+
+    The Langfuse client only looks at bare LANGFUSE_* variables, so the prefixed
+    settings were previously parsed and then ignored. Copying them here means one
+    documented variable name works for both.
+    """
+    if settings.langfuse_public_key:
+        os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
+    if settings.langfuse_secret_key:
+        os.environ["LANGFUSE_SECRET_KEY"] = settings.langfuse_secret_key.get_secret_value()
+    if settings.langfuse_base_url:
+        os.environ["LANGFUSE_HOST"] = settings.langfuse_base_url
+    os.environ["LANGFUSE_TRACING_ENVIRONMENT"] = settings.environment
+    os.environ["LANGFUSE_TRACING_ENABLED"] = "true" if settings.langfuse_enabled else "false"
+    os.environ["FASTRAG_TRACE_RAW_CONTENT"] = "true" if settings.trace_raw_content else "false"
+
+
+def trace_raw_content() -> bool:
+    """Whether traces may carry document and answer text rather than hashes."""
+    return os.getenv("FASTRAG_TRACE_RAW_CONTENT", "false").casefold() == "true"
+
+
 @contextmanager
 def observation(
     name: str,
