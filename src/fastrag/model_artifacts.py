@@ -25,17 +25,26 @@ def verify_model_artifact(root: Path, relative_file: str, expected_sha256: str) 
 
 
 def verify_configured_models(settings: Settings) -> None:
+    """Checksum every model that runs in-process.
+
+    Hosted providers have no local artifact to hash; their fingerprint is the
+    provider/model pair instead, and the provider is responsible for the weights.
+    """
     if settings.environment != "production":
         return
-    if settings.dense_model_path is None or settings.reranker_model_path is None:
-        raise ModelArtifactError("production requires local, checksum-verified model paths")
-    verify_model_artifact(
-        settings.dense_model_path,
-        settings.dense_model_file,
-        settings.dense_model_sha256,
-    )
-    verify_model_artifact(
-        settings.reranker_model_path,
-        settings.reranker_model_file,
-        settings.reranker_sha256,
-    )
+    if not settings.uses_hosted_embedding:
+        if settings.dense_model_path is None:
+            raise ModelArtifactError("production requires a local, checksum-verified dense model")
+        verify_model_artifact(
+            settings.dense_model_path,
+            settings.dense_model_file,
+            settings.dense_model_sha256,
+        )
+    if not settings.uses_hosted_reranker:
+        if settings.reranker_model_path is None:
+            raise ModelArtifactError("production requires a local, checksum-verified reranker")
+        verify_model_artifact(
+            settings.reranker_model_path,
+            settings.reranker_model_file,
+            settings.reranker_sha256,
+        )
