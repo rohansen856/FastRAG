@@ -21,6 +21,9 @@ class IndexManifest:
     chunk_size: int
     chunk_overlap: int
     state: str = "building"
+    chunk_strategies: tuple[str, ...] = ("sentence",)
+    languages: tuple[str, ...] = ()
+    chunk_count: int = 0
 
 
 class PostgresIndexRegistry:
@@ -152,3 +155,38 @@ class PostgresIndexRegistry:
         active = await self.active()
         if active is not None and active["embedding_fingerprint"] != fingerprint:
             raise RuntimeError("active index embedding fingerprint mismatch")
+
+    async def store_centroid(self, index_version: str, centroid: list[float]) -> None:
+        """Keep the off-topic vector in Postgres so hosted deploys do not need a local file."""
+        await asyncio.to_thread(self._store_centroid_sync, index_version, centroid)
+
+    def _store_centroid_sync(self, index_version: str, centroid: list[float]) -> None:
+        with psycopg.connect(self._database_url) as connection, connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE index_manifests
+                SET manifest = jsonb_set(manifest, '{centroid}', %s::jsonb)
+                WHERE index_version = %s
+                """,
+                (json.dumps(centroid), index_version),
+            )
+            if cursor.rowcount != 1:
+                raise KeyError(index_version)
+
+    def centroid_from_active(self) -> list[float] | None:
+        active = self._active_sync()
+        if active is None:
+            return None
+        manifest = active.get("manifest") or {}
+        if isinstance(manifest, str):
+            try:
+                manifest = json.loads(manifest)
+            except json.JSONDecodeError:
+                return None
+        raw = manifest.get("centroid")
+        if not isinstance(raw, list) or not raw:
+            return None
+        try:
+            return [float(value) for value in raw]
+        except (TypeError, ValueError):
+            return None

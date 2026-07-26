@@ -31,6 +31,8 @@ def cache_namespace(
     generator_model: str,
     max_answer_tokens: int,
     locale: str = "en",
+    chunk_strategy: str = "sentence",
+    retrieval_profile: str = "default",
 ) -> str:
     components = {
         "content": content_version,
@@ -39,6 +41,8 @@ def cache_namespace(
         "generator": generator_model,
         "max_tokens": max_answer_tokens,
         "locale": locale,
+        "chunking": chunk_strategy,
+        "retrieval": retrieval_profile,
     }
     raw = json.dumps(components, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode()).hexdigest()[:24]
