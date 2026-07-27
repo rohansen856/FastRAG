@@ -5,21 +5,29 @@ from collections.abc import AsyncIterator, Sequence
 import pytest
 
 from fastrag.calibration import Calibration
+from fastrag.crag import CorrectiveRetrieval
 from fastrag.domain import CachedAnswer, Chunk, Citation, RankedChunk
+from fastrag.guardrails import Guardrails
 from fastrag.pipeline import PipelineConfig, QueryPipeline
 
 
 class FakeEmbedder:
-    async def embed_query(self, query: str) -> list[float]:
-        return [1.0, 0.0]
+    def __init__(self, vector: list[float] | None = None) -> None:
+        self.vector = vector or [1.0, 0.0]
 
-    async def embed_documents(self, documents: Sequence[str]) -> list[list[float]]:
-        return [[1.0, 0.0] for _ in documents]
+    async def embed_query(self, query: str, *, deadline: object = None) -> list[float]:
+        return list(self.vector)
+
+    async def embed_documents(
+        self, documents: Sequence[str], *, deadline: object = None
+    ) -> list[list[float]]:
+        return [list(self.vector) for _ in documents]
 
 
 class FakeRetriever:
     def __init__(self, chunks: list[Chunk]) -> None:
         self.chunks = chunks
+        self.calls: list[dict[str, object]] = []
 
     async def retrieve(
         self,
@@ -28,27 +36,49 @@ class FakeRetriever:
         limit: int,
         *,
         collection: str | None = None,
+        strategy: str | None = None,
+        language: str | None = None,
+        deadline: object = None,
     ) -> list[Chunk]:
+        self.calls.append({"query": query, "strategy": strategy, "language": language})
         return self.chunks[:limit]
 
 
 class FakeReranker:
-    def __init__(self, score: float = 0.9) -> None:
+    def __init__(self, score: float = 0.9, *, strip_scores: dict[str, float] | None = None) -> None:
         self.score = score
+        self.strip_scores = strip_scores or {}
 
     async def rerank(
-        self, query: str, candidates: Sequence[Chunk], limit: int
+        self,
+        query: str,
+        candidates: Sequence[Chunk],
+        limit: int,
+        *,
+        deadline: object = None,
     ) -> list[RankedChunk]:
         return [RankedChunk(chunk=chunk, score=self.score) for chunk in candidates[:limit]]
 
+    async def score(
+        self, query: str, texts: Sequence[str], *, deadline: object = None
+    ) -> list[float]:
+        return [self.strip_scores.get(text, self.score) for text in texts]
+
 
 class FakeGenerator:
-    def __init__(self, output: str) -> None:
+    def __init__(self, output: str, *, json_result: dict[str, object] | None = None) -> None:
         self.output = output
+        self.json_result = json_result or {}
+        self.last_provider = "fake"
 
-    async def stream(self, query: str, contexts: Sequence[Chunk]) -> AsyncIterator[str]:
+    async def stream(
+        self, query: str, contexts: Sequence[Chunk], *, deadline: object = None
+    ) -> AsyncIterator[str]:
         for token in self.output.split(" "):
             yield token + " "
+
+    async def complete_json(self, **kwargs: object) -> dict[str, object]:
+        return dict(self.json_result)
 
 
 class MemoryCache:
@@ -94,9 +124,13 @@ def make_pipeline(
     output: str = "The refund period is thirty days [C:chunk-1].",
     score: float = 0.9,
     cache: MemoryCache | None = None,
+    guardrails: Guardrails | None = None,
+    crag: CorrectiveRetrieval | None = None,
+    calibration: Calibration | None = None,
+    max_context_tokens: int = 2400,
 ) -> tuple[QueryPipeline, MemoryCache]:
     answer_cache = cache or MemoryCache()
-    calibration = Calibration(
+    resolved = calibration or Calibration(
         reranker_threshold=0.5,
         reranker_fingerprint="reranker",
         embedding_fingerprint="embedding",
@@ -110,7 +144,9 @@ def make_pipeline(
             reranker=FakeReranker(score),
             generator=FakeGenerator(output),
             cache=answer_cache,
-            calibration=calibration,
+            calibration=resolved,
+            guardrails=guardrails,
+            crag=crag,
             config=PipelineConfig(
                 embedding_fingerprint="embedding",
                 reranker_fingerprint="reranker",
@@ -118,6 +154,7 @@ def make_pipeline(
                 generator_model="test-model",
                 max_answer_tokens=200,
                 content_version="test-index",
+                max_context_tokens=max_context_tokens,
             ),
         ),
         answer_cache,
