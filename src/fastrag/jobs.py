@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
-from .adapters.embedding import FastEmbedder
+from .bootstrap import build_embedder_and_reranker, embedding_fingerprint
 from .config import Settings
-from .fingerprint import EmbeddingFingerprint
 from .indexing import IndexBuilder
 from .model_artifacts import verify_configured_models
 from .registry import PostgresIndexRegistry
@@ -16,6 +15,24 @@ def rebuild_documents() -> dict[str, str]:
     return asyncio.run(_rebuild_documents())
 
 
+def build_index_builder(settings: Settings, registry: PostgresIndexRegistry) -> IndexBuilder:
+    embedder, _ = build_embedder_and_reranker(settings)
+    return IndexBuilder(
+        qdrant_url=settings.qdrant_url,
+        qdrant_api_key=(
+            settings.qdrant_api_key.get_secret_value() if settings.qdrant_api_key else None
+        ),
+        alias=settings.qdrant_alias,
+        dimension=settings.active_dense_dimension,
+        embedder=embedder,
+        embedding_fingerprint=embedding_fingerprint(settings),
+        registry=registry,
+        chunk_size=settings.chunk_size,
+        chunk_overlap=settings.chunk_overlap,
+        strategies=settings.chunk_strategy_list or ("sentence",),
+    )
+
+
 async def _rebuild_documents() -> dict[str, str]:
     settings = Settings()
     verify_configured_models(settings)
@@ -25,31 +42,8 @@ async def _rebuild_documents() -> dict[str, str]:
         for path in document_dir.iterdir()
         if path.is_file() and path.suffix.casefold() in SUPPORTED_SUFFIXES
     ]
-    fingerprint = EmbeddingFingerprint(
-        model_id=settings.dense_model_id,
-        revision=settings.dense_model_revision,
-        artifact_sha256=settings.dense_model_sha256,
-        dimension=settings.dense_dimension,
-        normalize=settings.dense_normalize,
-        query_prefix=settings.dense_query_prefix,
-    )
     registry = PostgresIndexRegistry(settings.database_url)
     await registry.initialize()
-    builder = IndexBuilder(
-        qdrant_url=settings.qdrant_url,
-        qdrant_api_key=(
-            settings.qdrant_api_key.get_secret_value() if settings.qdrant_api_key else None
-        ),
-        alias=settings.qdrant_alias,
-        dimension=settings.dense_dimension,
-        embedder=FastEmbedder(
-            settings.dense_model_id,
-            query_prefix=settings.dense_query_prefix,
-            normalize=settings.dense_normalize,
-            model_path=settings.dense_model_path,
-        ),
-        embedding_fingerprint=fingerprint,
-        registry=registry,
-    )
+    builder = build_index_builder(settings, registry)
     manifest = await builder.rebuild(paths)
     return {"index_version": manifest.index_version, "content_version": manifest.content_version}
