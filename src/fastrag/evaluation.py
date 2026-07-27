@@ -11,8 +11,7 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, Field, model_validator
 
-from .adapters.embedding import FastEmbedder
-from .adapters.retrieval import FastEmbedReranker, QdrantHybridRetriever
+from .bootstrap import build_embedder_and_reranker, build_retriever
 from .config import Settings
 from .model_artifacts import verify_configured_models
 
@@ -63,33 +62,23 @@ async def collect_records(
     items: list[GoldenItem], settings: Settings, api_url: str
 ) -> list[EvaluationRecord]:
     verify_configured_models(settings)
-    embedder = FastEmbedder(
-        settings.dense_model_id,
-        query_prefix=settings.dense_query_prefix,
-        normalize=settings.dense_normalize,
-        model_path=settings.dense_model_path,
-    )
-    retriever = QdrantHybridRetriever(
-        settings.qdrant_url,
-        settings.qdrant_alias,
-        api_key=(settings.qdrant_api_key.get_secret_value() if settings.qdrant_api_key else None),
-    )
-    reranker = FastEmbedReranker(
-        settings.reranker_model_id, model_path=settings.reranker_model_path
-    )
+    embedder, reranker = build_embedder_and_reranker(settings)
+    retriever = build_retriever(settings)
+    strategies = settings.chunk_strategy_list
+    strategy = strategies[0] if strategies else None
     records: list[EvaluationRecord] = []
     headers = {"Authorization": f"Bearer {settings.query_api_key.get_secret_value()}"}
     async with httpx.AsyncClient(timeout=60) as client:
         for item in items:
             vector = await embedder.embed_query(item.query)
             candidates = await retriever.retrieve(
-                item.query, vector, settings.retrieval_candidate_k
+                item.query, vector, settings.retrieval_candidate_k, strategy=strategy
             )
             reranked = await reranker.rerank(item.query, candidates, settings.retrieval_candidate_k)
             response = await client.post(
                 f"{api_url.rstrip('/')}/v1/query",
                 headers=headers,
-                json={"query": item.query},
+                json={"query": item.query, "strategy": strategy},
             )
             response.raise_for_status()
             records.append(
@@ -136,7 +125,6 @@ def deterministic_metrics(records: list[EvaluationRecord]) -> dict[str, float]:
 
 
 def ragas_metrics(records: list[EvaluationRecord], settings: Settings) -> dict[str, float]:
-    from fastembed import TextEmbedding
     from langchain_core.embeddings import Embeddings
     from langchain_openai import ChatOpenAI
     from ragas import EvaluationDataset, evaluate
@@ -144,7 +132,7 @@ def ragas_metrics(records: list[EvaluationRecord], settings: Settings) -> dict[s
     from ragas.llms import LangchainLLMWrapper
     from ragas.metrics import FactualCorrectness, Faithfulness, ResponseRelevancy
 
-    if settings.dense_model_path is None:
+    if not settings.uses_hosted_embedding and settings.dense_model_path is None:
         raise RuntimeError("golden evaluation requires a verified local embedding model")
 
     dataset = EvaluationDataset.from_list(
@@ -167,19 +155,20 @@ def ragas_metrics(records: list[EvaluationRecord], settings: Settings) -> dict[s
     )
 
     class EvaluationEmbeddings(Embeddings):  # type: ignore[misc]
+        """Sync bridge so RAGAS can use whichever embedder the profile selected.
+
+        `evaluate` is driven from a worker thread, so there is no running loop
+        here and `asyncio.run` is safe.
+        """
+
         def __init__(self) -> None:
-            self._model = TextEmbedding(
-                model_name=settings.dense_model_id,
-                specific_model_path=str(settings.dense_model_path),
-                local_files_only=True,
-            )
+            self._embedder, _ = build_embedder_and_reranker(settings)
 
         def embed_documents(self, texts: list[str]) -> list[list[float]]:
-            return [[float(value) for value in vector] for vector in self._model.embed(texts)]
+            return asyncio.run(self._embedder.embed_documents(texts))
 
         def embed_query(self, text: str) -> list[float]:
-            vector = next(iter(self._model.query_embed(settings.dense_query_prefix + text)))
-            return [float(value) for value in vector]
+            return asyncio.run(self._embedder.embed_query(text))
 
     result = evaluate(
         dataset=dataset,
