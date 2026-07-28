@@ -1,0 +1,63 @@
+services:
+  - type: web
+    name: fastrag-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health/ready
+    envVars:
+      - key: FASTRAG_PROFILE
+        value: cloud
+      - key: FASTRAG_ENVIRONMENT
+        value: production
+      # onnxruntime does not fit alongside everything else on the 512 MB free
+      # instance, so the cloud profile retrieves dense-only. Hybrid RRF stays
+      # available on any paid instance by flipping this to true.
+      - key: FASTRAG_SPARSE_RETRIEVAL_ENABLED
+        value: false
+      # Redis Cloud free includes RediSearch; Upstash does not. Set false there.
+      - key: FASTRAG_SEMANTIC_CACHE_ENABLED
+        value: true
+      - key: FASTRAG_CHUNK_STRATEGIES
+        value: sentence,fixed,sentence_window,semantic,hierarchical,metadata_aware
+      - key: FASTRAG_GUARDRAIL_LANGUAGES
+        value: en,hi,bn,ta,te,mr
+      - key: FASTRAG_LLM_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: FASTRAG_LLM_MODEL
+        value: llama-3.3-70b-versatile
+      # Groq free is 30 RPM; the harness retries 429s but a second provider
+      # keeps the demo alive when the minute budget is gone.
+      - key: FASTRAG_LLM_FALLBACK_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: FASTRAG_LLM_FALLBACK_MODEL
+        value: meta-llama/llama-3.3-70b-instruct:free
+      - key: FASTRAG_CORS_ORIGINS
+        sync: false
+      - key: FASTRAG_QUERY_API_KEY
+        generateValue: true
+      - key: FASTRAG_ADMIN_API_KEY
+        generateValue: true
+      - key: FASTRAG_QDRANT_URL
+        sync: false
+      - key: FASTRAG_QDRANT_API_KEY
+        sync: false
+      - key: FASTRAG_REDIS_URL
+        sync: false
+      - key: FASTRAG_DATABASE_URL
+        sync: false
+      - key: FASTRAG_JINA_API_KEY
+        sync: false
+      - key: FASTRAG_SARVAM_API_KEY
+        sync: false
+      - key: FASTRAG_LLM_API_KEY
+        sync: false
+      - key: FASTRAG_LLM_FALLBACK_API_KEY
+        sync: false
+      - key: FASTRAG_LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: FASTRAG_LANGFUSE_SECRET_KEY
+        sync: false
+      - key: FASTRAG_LANGFUSE_BASE_URL
+        value: https://cloud.langfuse.com

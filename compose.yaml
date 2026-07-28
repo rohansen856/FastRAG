@@ -19,18 +19,17 @@ x-app-environment: &app-environment
   FASTRAG_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/fastrag
   FASTRAG_LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
   FASTRAG_LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
-  FASTRAG_LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-http://langfuse-web:3000}
-  LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
-  LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
-  LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-http://langfuse-web:3000}
-  LANGFUSE_TRACING_ENVIRONMENT: production
+  FASTRAG_LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}
   FASTRAG_DATA_DIR: /data
 
+# Only consumed by the optional `langfuse` profile. Langfuse Cloud's free tier
+# covers the same need without ClickHouse, MinIO, and a second Redis, so the
+# default stack points FASTRAG_LANGFUSE_BASE_URL there instead.
 x-langfuse-environment: &langfuse-environment
   NEXTAUTH_URL: https://${LANGFUSE_DOMAIN:-langfuse.localhost}
   DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/langfuse
-  SALT: ${LANGFUSE_SALT:?set LANGFUSE_SALT}
-  ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:?set LANGFUSE_ENCRYPTION_KEY}
+  SALT: ${LANGFUSE_SALT:-}
+  ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-}
   CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
   CLICKHOUSE_URL: http://clickhouse:8123
   CLICKHOUSE_USER: clickhouse
@@ -38,7 +37,7 @@ x-langfuse-environment: &langfuse-environment
   CLICKHOUSE_CLUSTER_ENABLED: "false"
   REDIS_HOST: langfuse-redis
   REDIS_PORT: "6379"
-  REDIS_AUTH: ${LANGFUSE_REDIS_PASSWORD:?set LANGFUSE_REDIS_PASSWORD}
+  REDIS_AUTH: ${LANGFUSE_REDIS_PASSWORD:-}
   LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
   LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
   LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
@@ -69,8 +68,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
-      langfuse-web:
-        condition: service_healthy
 
   api:
     build: .
@@ -89,8 +86,6 @@ services:
       postgres:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
-      langfuse-web:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"]
@@ -167,11 +162,12 @@ services:
       retries: 20
 
   langfuse-web:
+    profiles: [langfuse]
     image: langfuse/langfuse:3.185.0
     restart: unless-stopped
     environment:
       <<: *langfuse-environment
-      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:?set LANGFUSE_NEXTAUTH_SECRET}
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-}
       LANGFUSE_INIT_ORG_ID: fastrag
       LANGFUSE_INIT_ORG_NAME: FastRAG
       LANGFUSE_INIT_PROJECT_ID: fastrag-production
@@ -193,12 +189,14 @@ services:
       retries: 20
 
   langfuse-worker:
+    profiles: [langfuse]
     image: langfuse/langfuse-worker:3.185.0
     restart: unless-stopped
     environment: *langfuse-environment
     depends_on: *langfuse-dependencies
 
   clickhouse:
+    profiles: [langfuse]
     image: clickhouse/clickhouse-server:25.12
     restart: unless-stopped
     user: "101:101"
@@ -215,6 +213,7 @@ services:
       retries: 20
 
   langfuse-redis:
+    profiles: [langfuse]
     image: redis:7.4.5-alpine
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${LANGFUSE_REDIS_PASSWORD}", "--maxmemory-policy", "noeviction"]
@@ -227,12 +226,13 @@ services:
       retries: 10
 
   minio:
+    profiles: [langfuse]
     image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
     restart: unless-stopped
     command: server --address :9000 --console-address :9001 /data
     environment:
       MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-}
     volumes:
       - minio_data:/data
     healthcheck:

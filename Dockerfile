@@ -14,5 +14,5 @@ WORKDIR /app
 COPY --chown=fastrag:fastrag config ./config
 USER fastrag
 EXPOSE 8000
-CMD ["uvicorn", "fastrag.api:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+CMD ["sh", "-c", "exec uvicorn fastrag.api:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]
 
