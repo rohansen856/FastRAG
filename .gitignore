@@ -1,4 +1,8 @@
 .env
+.env.*
+!.env.local.example
+!.env.cloud.example
+!web/.env.example
 .venv/
 __pycache__/
 *.py[cod]
@@ -13,4 +17,21 @@ build/
 data/
 eval/results/
 config/calibration.json
+config/corpus_centroid.json
 
+# Derived from the corpus by scripts/ingest-msmarco.py, not hand-reviewed.
+# Regenerate rather than commit; the .example files document the schema.
+eval/golden.jsonl
+eval/calibration.jsonl
+eval/cache_pairs.jsonl
+
+# Benchmark and evaluation output; regenerate with scripts/bench-latency.py
+bench/results/
+
+# Web UI
+node_modules/
+.next/
+out/
+.vercel/
+next-env.d.ts
+*.tsbuildinfo
