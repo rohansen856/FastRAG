@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface: #0b0f17;
+  --color-panel: #111826;
+  --color-edge: #1f2937;
+  --color-accent: #38bdf8;
+  --color-accent-soft: #0ea5e9;
+  --color-muted: #94a3b8;
+}
+
+html,
+body {
+  background: var(--color-surface);
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(56 189 248 / 45%);
+  }
+  70% {
+    box-shadow: 0 0 0 18px rgb(56 189 248 / 0%);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(56 189 248 / 0%);
+  }
+}
+
+.recording-pulse {
+  animation: pulse-ring 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
