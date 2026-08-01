@@ -9,6 +9,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from .adapters.retrieval import connect_qdrant
 from .bootstrap import CENTROID_PATH
 from .chunking import SourceDocument, build_strategy, chunk_document
 from .fingerprint import EmbeddingFingerprint
@@ -38,9 +39,8 @@ class IndexBuilder:
         batch_size: int = 24,
     ) -> None:
         from fastembed import SparseTextEmbedding
-        from qdrant_client import QdrantClient
 
-        self._client: Any = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        self._client: Any = connect_qdrant(qdrant_url, qdrant_api_key)
         self._sparse: Any = SparseTextEmbedding(model_name="Qdrant/bm25")
         self._alias = alias
         self._dimension = dimension

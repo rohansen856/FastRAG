@@ -8,6 +8,21 @@ from typing import Any
 from ..domain import Chunk, RankedChunk
 
 
+def connect_qdrant(url: str, api_key: str | None = None) -> Any:
+    """Open a Qdrant client, including Cloud hosts whose REST port is 443.
+
+    `QdrantClient` defaults to 6333 even for `https://host` URLs with no port.
+    Qdrant Cloud's REST endpoint is on 443, and 6333 times out from most networks.
+    """
+    from qdrant_client import QdrantClient
+
+    kwargs: dict[str, Any] = {"url": url, "api_key": api_key, "timeout": 60}
+    host = url.split("://", 1)[-1].split("/", 1)[0]
+    if url.startswith("https://") and ":" not in host:
+        kwargs["port"] = 443
+    return QdrantClient(**kwargs)
+
+
 class QdrantHybridRetriever:
     """Dense + BM25 sparse retrieval fused with reciprocal rank fusion.
 
@@ -28,9 +43,7 @@ class QdrantHybridRetriever:
         leg_k: int = 40,
         sparse: bool = True,
     ) -> None:
-        from qdrant_client import QdrantClient
-
-        self._client: Any = QdrantClient(url=url, api_key=api_key)
+        self._client: Any = connect_qdrant(url, api_key)
         self._collection = collection
         self._collection_provider = collection_provider
         self._leg_k = leg_k
