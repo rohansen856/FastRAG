@@ -1,8 +1,11 @@
 # Local setup
 
-This guide gets FastRAG running locally with Ollama `llama3.2:latest` as the generation
-provider. The same service code is used in production; local setup mainly swaps the hosted
-LLM endpoint for Ollama.
+This guide gets FastRAG running locally on the `local` profile: in-process ONNX embedding and
+reranking, containerised Qdrant, Redis, and Postgres, and Ollama `llama3.2:latest` for
+generation. Nothing on the retrieval path crosses the internet, which is what makes this the
+rig the sub-200ms numbers in [latency.md](latency.md) are measured on.
+
+For the hosted free-tier setup instead, see [deployment.md](deployment.md).
 
 ## Prerequisites
 
@@ -32,23 +35,28 @@ uv run mypy
 
 ## Configure environment
 
-Create `.env` from the template:
+Create `.env` from the local template, which is already configured for Ollama and the
+in-process models:
 
 ```bash
-cp .env.example .env
-```
-
-For local Ollama, keep:
-
-```bash
-FASTRAG_LLM_BASE_URL=http://host.docker.internal:11434/v1
-FASTRAG_LLM_API_KEY=ollama
-FASTRAG_LLM_MODEL=llama3.2:latest
+cp .env.local.example .env
 ```
 
 On Linux, Docker may need an explicit host gateway mapping for containers to reach the host
 Ollama daemon. If `host.docker.internal` does not resolve in your Docker setup, use the host
 gateway IP or run an OpenAI-compatible proxy container on the compose network.
+
+Two things in that file are worth knowing about before you hit them:
+
+- `FASTRAG_SEMANTIC_CACHE_ENABLED=false`, because the plain `redis:8` image has no RediSearch
+  module. Exact caching still works. Swap in `redis/redis-stack` to enable it.
+- Voice input needs a Sarvam key even here — no speech model runs in-process. Leave
+  `FASTRAG_SARVAM_API_KEY` blank to run text-only; the `/v1/voice/*` endpoints then return
+  503 and nothing else is affected. See [voice.md](voice.md).
+
+The embedding model in this profile, `BAAI/bge-base-en-v1.5`, is English-only. To query the
+multilingual MSMARCO-XI corpus, use the `cloud` profile or configure a multilingual local
+model.
 
 ## Required calibration and model artifacts
 
@@ -85,6 +93,11 @@ docker compose build
 docker compose up -d
 ```
 
+This starts the API, worker, Qdrant, Redis, Postgres, Caddy, Prometheus, and Grafana.
+Self-hosted Langfuse is not included: tracing points at Langfuse Cloud's free tier by
+default, which avoids running ClickHouse, MinIO, and a second Redis on your laptop. Add
+`--profile langfuse` and the commented block in `.env.local.example` if you want it locally.
+
 Check health:
 
 ```bash
@@ -105,6 +118,16 @@ The worker creates a shadow Qdrant collection, validates point count, swaps the 
 alias, and activates the manifest in PostgreSQL. Image-only PDFs fail until OCR is added
 upstream.
 
+Every strategy in `FASTRAG_CHUNK_STRATEGIES` is applied to each document and indexed into the
+same collection under a `strategy` payload field, so they can be compared at query time. See
+[chunking.md](chunking.md).
+
+For the multilingual MSMARCO-XI corpus and a golden set derived from its own labels:
+
+```bash
+uv run python scripts/ingest-msmarco.py --rows-per-language 250 --max-chunks 90000
+```
+
 ## Query locally
 
 ```bash
@@ -124,6 +147,21 @@ curl -N \
   -d '{"query":"What is the refund period?"}' \
   http://localhost/v1/query/stream
 ```
+
+Add `"strategy"` to compare chunking strategies, and `"language"` to filter to one language.
+
+## Run the web UI
+
+```bash
+cd web
+cp .env.example .env.local     # point FASTRAG_API_URL at http://localhost
+npm install
+npm run dev
+```
+
+The UI proxies through its own Next.js route so the API token stays server-side. Because the
+browser then talks to `localhost:3000` rather than the API directly, `FASTRAG_CORS_ORIGINS`
+only matters if you bypass the proxy.
 
 ## Local Ollama smoke test
 
