@@ -3,6 +3,7 @@
 !.env.local.example
 !.env.cloud.example
 !web/.env.example
+web/node_modules/
 .venv/
 __pycache__/
 *.py[cod]
