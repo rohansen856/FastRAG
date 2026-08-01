@@ -1,5 +1,7 @@
 {
   "reranker_threshold": 0.5,
+  "crag_confident_threshold": 0.72,
+  "offtopic_threshold": 0.24,
   "reranker_fingerprint": "generated-by-python-m-fastrag.calibrate",
   "embedding_fingerprint": "generated-by-python-m-fastrag.calibrate",
   "false_answer_rate": 0.05,
