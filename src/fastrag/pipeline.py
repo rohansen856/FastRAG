@@ -281,7 +281,7 @@ class QueryPipeline:
                     output=self._generation_trace_output(raw_answer),
                 )
         except CitationValidationError as exc:
-            if raw_answer.strip() == NO_ANSWER_TEXT:
+            if NO_ANSWER_TEXT.casefold() in raw_answer.casefold():
                 async for event in self._no_answer(
                     state, namespace, query, vector, active_index.content_version
                 ):
