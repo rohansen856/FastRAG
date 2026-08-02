@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from redis.asyncio import Redis
-from redis.exceptions import ResponseError
+from redis.exceptions import ResponseError, TimeoutError as RedisTimeoutError
 
 from ..domain import CachedAnswer, CacheStatus, Citation, Outcome
 
@@ -51,6 +51,7 @@ class RedisAnswerCache:
         self._ttl = ttl_seconds
         self._threshold = distance_threshold
         self._semantic_enabled = semantic_enabled
+        self._available = True
 
     @property
     def semantic_enabled(self) -> bool:
@@ -63,14 +64,17 @@ class RedisAnswerCache:
         FT.* outright. The exact cache still works there, so we disable the
         semantic tier rather than failing startup.
         """
+        try:
+            await self._redis.ping()
+        except (OSError, TimeoutError, ConnectionError, RedisTimeoutError):
+            # Unreachable Redis must not block process startup; lookups fail open.
+            self._available = False
+            self._semantic_enabled = False
+            return
         if not self._semantic_enabled:
             return
         try:
             await self._redis.execute_command("FT.INFO", self._index_name)
-            return
-        except (OSError, TimeoutError, ConnectionError):
-            # Unreachable Redis must not block process startup; lookups fail open.
-            self._semantic_enabled = False
             return
         except ResponseError as exc:
             if _module_missing(exc):
@@ -113,11 +117,13 @@ class RedisAnswerCache:
             self._semantic_enabled = False
 
     async def get_exact(self, namespace: str, query: str) -> CachedAnswer | None:
+        if not self._available:
+            return None
         value = await self._redis.get(self._exact_key(namespace, query))
         return self._decode(value, CacheStatus.EXACT) if value else None
 
     async def get_semantic(self, namespace: str, vector: list[float]) -> CachedAnswer | None:
-        if self._threshold is None or not self._semantic_enabled:
+        if self._threshold is None or not self._semantic_enabled or not self._available:
             return None
         safe_namespace = re.sub(r"[^A-Za-z0-9_-]", "_", namespace)
         response: list[Any] = await self._redis.execute_command(
@@ -155,6 +161,8 @@ class RedisAnswerCache:
         *,
         semantic: bool,
     ) -> None:
+        if not self._available:
+            return
         payload = json.dumps(
             {
                 "answer": answer,
