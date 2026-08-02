@@ -38,7 +38,12 @@ class RedisAnswerCache:
         distance_threshold: float | None,
         semantic_enabled: bool = True,
     ) -> None:
-        self._redis = Redis.from_url(redis_url, decode_responses=False)
+        self._redis = Redis.from_url(
+            redis_url,
+            decode_responses=False,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+        )
         fingerprint_prefix = embedding_fingerprint[:16]
         self._index_name = f"fastrag-semantic-{fingerprint_prefix}"
         self._semantic_prefix = f"fastrag:semantic:{fingerprint_prefix}:"
@@ -62,6 +67,10 @@ class RedisAnswerCache:
             return
         try:
             await self._redis.execute_command("FT.INFO", self._index_name)
+            return
+        except (OSError, TimeoutError, ConnectionError):
+            # Unreachable Redis must not block process startup; lookups fail open.
+            self._semantic_enabled = False
             return
         except ResponseError as exc:
             if _module_missing(exc):
