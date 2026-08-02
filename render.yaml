@@ -26,7 +26,7 @@ services:
       - key: FASTRAG_LLM_BASE_URL
         value: https://api.groq.com/openai/v1
       - key: FASTRAG_LLM_MODEL
-        value: llama-3.3-70b-versatile
+        value: openai/gpt-oss-20b
       # Groq free is 30 RPM; the harness retries 429s but a second provider
       # keeps the demo alive when the minute budget is gone.
       - key: FASTRAG_LLM_FALLBACK_BASE_URL
