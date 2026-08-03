@@ -17,6 +17,16 @@ from ..harness import Deadline, ProviderError, ProviderHarness
 SARVAM = "sarvam"
 ELEVENLABS = "elevenlabs"
 
+# Saaras wants BCP-47 regional tags; the rest of FastRAG uses ISO 639-1.
+_SARVAM_LANGUAGE = {
+    "en": "en-IN",
+    "hi": "hi-IN",
+    "bn": "bn-IN",
+    "ta": "ta-IN",
+    "te": "te-IN",
+    "mr": "mr-IN",
+}
+
 
 class TranscriptionError(ProviderError):
     pass
@@ -59,7 +69,7 @@ class SarvamTranscriber:
         started = time.perf_counter()
         data = {"model": self._model, "mode": self._mode}
         if language:
-            data["language_code"] = language
+            data["language_code"] = _SARVAM_LANGUAGE.get(language.casefold(), language)
 
         async def call() -> dict[str, object]:
             response = await self._client.post(
