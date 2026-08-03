@@ -128,9 +128,12 @@ class OpenAICompatibleGenerator:
                     return
                 try:
                     event = json.loads(data)
-                    if event.get("usage"):
+                    usage = event.get("usage")
+                    if isinstance(usage, dict):
                         self.last_usage = {
-                            str(key): int(value) for key, value in event["usage"].items()
+                            str(key): int(value)
+                            for key, value in usage.items()
+                            if isinstance(value, int | float)
                         }
                     choices = event.get("choices") or []
                     content = choices[0]["delta"].get("content") if choices else None
