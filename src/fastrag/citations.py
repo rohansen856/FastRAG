@@ -4,9 +4,14 @@ import re
 from collections.abc import Sequence
 
 from .domain import Chunk, Citation
-from .text import SENTENCE_END_RE
+from .text import SENTENCE_TERMINATORS
 
 MARKER_RE = re.compile(r"\[C:([A-Za-z0-9_.:-]+)\]")
+# Split only when the next sentence has clearly started, so `fact. [C:id]`
+# stays one unit. Look behind a terminator or a closing marker bracket.
+_SENTENCE_SPLIT_RE = re.compile(
+    rf"(?:(?<=[{re.escape(SENTENCE_TERMINATORS)}])|(?<=\]))\s+(?=[^\s\[])"
+)
 
 
 class CitationValidationError(ValueError):
@@ -23,18 +28,18 @@ class SentenceCitationBuffer:
 
     def feed(self, text: str) -> list[str]:
         self._buffer += text
-        parts = SENTENCE_END_RE.split(self._buffer)
+        parts = _SENTENCE_SPLIT_RE.split(self._buffer)
         if len(parts) == 1:
             return []
         self._buffer = parts.pop()
         return [self._validate_and_render(part) for part in parts if part.strip()]
 
     def finish(self) -> list[str]:
-        if not self._buffer.strip():
-            return []
-        rendered = self._validate_and_render(self._buffer)
+        leftover = self._buffer.strip()
         self._buffer = ""
-        return [rendered]
+        if not leftover:
+            return []
+        return [self._validate_and_render(leftover)]
 
     def citations(self) -> list[Citation]:
         ordered = sorted(self._numbers.items(), key=lambda item: item[1])
