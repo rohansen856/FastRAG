@@ -24,7 +24,12 @@ def _module_missing(exc: ResponseError) -> bool:
 
 def _index_missing(exc: ResponseError) -> bool:
     message = str(exc).casefold()
-    return "unknown index name" in message or "no such index" in message
+    return (
+        "unknown index name" in message
+        or "no such index" in message
+        or "index not found" in message
+        or "search_index_not_found" in message
+    )
 
 
 class RedisAnswerCache:
