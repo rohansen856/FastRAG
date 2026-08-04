@@ -9,10 +9,10 @@ exact/semantic response caching.
 Every dependency sits behind a protocol, so the same code runs in two shapes selected by
 `FASTRAG_PROFILE`:
 
-- **`local`** — in-process ONNX models against containerised Qdrant, Redis, and Postgres.
+- **`local`** - in-process ONNX models against containerised Qdrant, Redis, and Postgres.
   Nothing on the retrieval path crosses the internet, which is where the sub-200ms retrieval
   target is measured.
-- **`cloud`** — hosted free tiers only (Qdrant Cloud, Jina, Sarvam, Groq, Neon, Redis Cloud,
+- **`cloud`** - hosted free tiers only (Qdrant Cloud, Jina, Sarvam, Groq, Neon, Redis Cloud,
   Langfuse Cloud), fitting Render's free web service with the UI on Vercel.
 
 Both are benchmarked and both sets of numbers are published, clearly labelled. See

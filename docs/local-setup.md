@@ -50,7 +50,7 @@ Two things in that file are worth knowing about before you hit them:
 
 - `FASTRAG_SEMANTIC_CACHE_ENABLED=false`, because the plain `redis:8` image has no RediSearch
   module. Exact caching still works. Swap in `redis/redis-stack` to enable it.
-- Voice input needs a Sarvam key even here — no speech model runs in-process. Leave
+- Voice input needs a Sarvam key even here - no speech model runs in-process. Leave
   `FASTRAG_SARVAM_API_KEY` blank to run text-only; the `/v1/voice/*` endpoints then return
   503 and nothing else is affected. See [voice.md](voice.md).
 

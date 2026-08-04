@@ -7,7 +7,7 @@ reported, but separately, and they are not counted toward that number.
 That split needs justifying rather than assuming, so here it is. Token generation is bounded
 by how fast the model emits tokens, and no retrieval work changes it; a 70B model producing
 150 tokens cannot do so in 200ms on any tier. Speech-to-text is a network round trip to
-Sarvam. Both are real user-facing latency and both are reported at every percentile — but
+Sarvam. Both are real user-facing latency and both are reported at every percentile - but
 folding them into one blended number would mean an improvement in retrieval could be erased
 by a slower model, and nobody could tell which had happened. Every stage is reported at every
 percentile precisely so a regression can be attributed.
@@ -33,7 +33,7 @@ number would describe process startup rather than query latency.
 ## Reading the report
 
 P50, P70, P95, P100 per stage, plus `retrieval_pipeline_ms` totalling the six stages the
-target covers, plus `ttft_ms` for time to first validated answer sentence — which is the
+target covers, plus `ttft_ms` for time to first validated answer sentence - which is the
 number a user actually experiences, since the answer starts appearing then.
 
 P100 is the slowest single request in the sample. It is worth reporting because it exposes

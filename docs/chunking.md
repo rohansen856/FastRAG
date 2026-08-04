@@ -11,26 +11,26 @@ Pass `strategy` on `/v1/query` to pick one; omit it to search across all indexed
 
 ## The six
 
-**`fixed`** — uniform word windows with overlap. The baseline. Fast, predictable, and it
+**`fixed`** - uniform word windows with overlap. The baseline. Fast, predictable, and it
 will happily cut a sentence in half.
 
-**`sentence`** — packs whole sentences up to a word budget and never splits mid-sentence.
+**`sentence`** - packs whole sentences up to a word budget and never splits mid-sentence.
 Overlap carries trailing sentences into the next chunk so a fact that spans a boundary still
 appears intact somewhere.
 
-**`sentence_window`** — indexes one sentence but returns its neighbours. A single-sentence
+**`sentence_window`** - indexes one sentence but returns its neighbours. A single-sentence
 vector is tightly focused, which improves retrieval precision, but a lone sentence often
 cannot answer anything on its own; the returned window restores the context it needs.
 
-**`semantic`** — embeds consecutive sentences and cuts where similarity drops. The cut point
+**`semantic`** - embeds consecutive sentences and cuts where similarity drops. The cut point
 is a percentile of the similarity distribution actually observed in that document rather
 than a fixed constant, so it adapts instead of being tuned for one corpus. This is the
 expensive one at ingest time: it embeds every sentence.
 
-**`hierarchical`** — small children are retrieved, large parents are generated from. Same
+**`hierarchical`** - small children are retrieved, large parents are generated from. Same
 idea as `sentence_window` at a coarser granularity.
 
-**`metadata_aware`** — prepends `title | language | query` as a header to the embedded text.
+**`metadata_aware`** - prepends `title | language | query` as a header to the embedded text.
 A bare MS MARCO passage frequently never names the entity it is about, and this restores
 that signal. The citation excerpt still shows the untouched passage, so the header never
 leaks into what the user reads.
@@ -59,7 +59,7 @@ measure on your corpus, do not reason about it from first principles.
 
 ## Cost
 
-Indexing every strategy multiplies the vector count by roughly the number of strategies —
+Indexing every strategy multiplies the vector count by roughly the number of strategies -
 more for `sentence_window`, which produces one chunk per sentence. On Qdrant's 1 GB free
 tier this is the binding constraint, which is why `scripts/ingest-msmarco.py` takes a
 `--max-chunks` cap. In production you index the one strategy you chose, set

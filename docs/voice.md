@@ -3,7 +3,7 @@
 Voice is a stage in front of the existing pipeline, not a separate pipeline. Audio becomes
 text, and from that point every guardrail, retrieval, CRAG, and citation rule behaves exactly
 as it does for typed input. The transcript is carried through and returned so the user can
-see what the system actually heard — most "wrong answer" reports on voice systems are
+see what the system actually heard - most "wrong answer" reports on voice systems are
 transcription errors, and hiding the transcript makes them impossible to diagnose.
 
 ## Endpoints
@@ -47,7 +47,7 @@ For the MSMARCO-XI corpus, which is indexed per-language, `transcribe` is the ri
 **ElevenLabs Scribe** is available as an alternative via `FASTRAG_STT_PROVIDER=elevenlabs`.
 
 If no key is configured, `active_stt_provider` resolves to `none` and the three voice
-endpoints return 503 with `{"stage": "stt"}`. Text queries are unaffected — voice is
+endpoints return 503 with `{"stage": "stt"}`. Text queries are unaffected - voice is
 optional, not a hard dependency.
 
 ## Audio format

@@ -21,10 +21,10 @@ the existing abstention threshold.
 
 ## Three bands, three actions
 
-**Above `crag_upper` — `CORRECT`.** Retrieval is good. Generate directly, no correction, no
+**Above `crag_upper` - `CORRECT`.** Retrieval is good. Generate directly, no correction, no
 added latency. This is the common case and it is why CRAG does not move the median.
 
-**Between the thresholds — `AMBIGUOUS`, so refine.** A passage often lands mid-band because
+**Between the thresholds - `AMBIGUOUS`, so refine.** A passage often lands mid-band because
 one genuinely relevant sentence is buried in noise. The chunk is decomposed into sentence
 strips, the strips are re-scored by the same reranker, and only those above the abstention
 threshold are kept. Strips shorter than `FASTRAG_CRAG_STRIP_MIN_TOKENS` keep their original
@@ -32,9 +32,9 @@ chunk instead, because trimming below that point leaves too little to support a 
 If nothing survives, the original ranking is used unchanged rather than generating from
 nothing.
 
-**Below `reranker_threshold` — `INCORRECT`, so rewrite once.** The generator rewrites the
-query under a JSON schema — expanding abbreviations, adding entity names, keeping the
-original language — and retrieval runs again. If the second attempt clears the threshold,
+**Below `reranker_threshold` - `INCORRECT`, so rewrite once.** The generator rewrites the
+query under a JSON schema - expanding abbreviations, adding entity names, keeping the
+original language - and retrieval runs again. If the second attempt clears the threshold,
 its results are used. If not, the system abstains.
 
 The rewrite is capped at one iteration by `FASTRAG_CRAG_MAX_REWRITES`. An uncapped loop is
@@ -45,7 +45,7 @@ hang, and abstaining is the correct outcome for that query anyway.
 
 Every failure path in the rewrite branch abstains. If the rewrite call raises, if it returns
 an empty string, if it returns the original query unchanged, or if the retry still scores
-below threshold, the result is "I don't know" — never a generated answer. A correction step
+below threshold, the result is "I don't know" - never a generated answer. A correction step
 that cannot complete must not become a licence to answer without grounding.
 
 ## What you see

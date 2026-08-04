@@ -11,7 +11,7 @@ unanswerable. Keep calibration data separate from regression data.
 `scripts/ingest-msmarco.py` derives a golden set from the dataset's own labels: `is_selected`
 marks the relevant passage and MS MARCO's "No Answer Present." marker supplies genuinely
 unanswerable queries, targeting roughly 35 percent unanswerable. These are real labels rather
-than fabricated ones, but they are the dataset's judgements, not yours — review them before
+than fabricated ones, but they are the dataset's judgements, not yours - review them before
 treating a release as gated.
 
 Check dataset shape:
@@ -54,10 +54,10 @@ uv run python -m fastrag.calibrate \
 
 This produces four calibrated values, not one:
 
-- `reranker_threshold` — the abstention gate, and CRAG's lower band.
-- `crag_confident_threshold` — CRAG's upper band; above it, generate without correction.
-- `cache_distance_threshold` — semantic cache cosine distance.
-- `offtopic_threshold` — with the corpus centroid, the off-topic guardrail.
+- `reranker_threshold` - the abstention gate, and CRAG's lower band.
+- `crag_confident_threshold` - CRAG's upper band; above it, generate without correction.
+- `cache_distance_threshold` - semantic cache cosine distance.
+- `offtopic_threshold` - with the corpus centroid, the off-topic guardrail.
 
 Recalibrate when you change dense embeddings, reranker, chunking, prompt, provider model,
 profile, or corpus shape. Switching profile changes the embedding and reranking providers,

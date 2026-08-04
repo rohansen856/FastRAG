@@ -20,7 +20,7 @@ rather than a rewrite. `FASTRAG_PROFILE` picks a coherent default set; individua
 
 `local` is the benchmark rig: nothing crosses the internet on the retrieval path, which is
 what makes the sub-200ms measurement meaningful. `cloud` is the live demo that fits free
-tiers. Both are benchmarked and both sets of numbers are published — see
+tiers. Both are benchmarked and both sets of numbers are published - see
 [latency.md](latency.md) for why conflating them would be dishonest.
 
 The `local` profile is English-only on the embedding side, because `bge-base-en-v1.5` is an
@@ -29,31 +29,31 @@ multilingual local model.
 
 ## Free tiers, and what each one costs you
 
-**Qdrant Cloud** — 1 GB, roughly 250K vectors at 768d, permanent. Keeps named sparse vectors,
+**Qdrant Cloud** - 1 GB, roughly 250K vectors at 768d, permanent. Keeps named sparse vectors,
 so hybrid retrieval and RRF are unchanged from self-hosted. Only the URL and API key differ.
 
-**Jina AI** — 10M tokens shared across embedding and reranking on one key. `jina-embeddings-v3`
+**Jina AI** - 10M tokens shared across embedding and reranking on one key. `jina-embeddings-v3`
 is multilingual at 1024d and covers all five Indic languages. Changing embedding provider
 changes the embedding fingerprint and therefore requires a re-index; this is enforced at
 startup rather than discovered later through bad results.
 
-**Sarvam Saaras v3** — authenticates with an `api-subscription-key` header, not a bearer
+**Sarvam Saaras v3** - authenticates with an `api-subscription-key` header, not a bearer
 token, which is the usual first thing to get wrong. See [voice.md](voice.md).
 
-**Groq** — OpenAI-compatible, so [`adapters/generation.py`](../src/fastrag/adapters/generation.py)
+**Groq** - OpenAI-compatible, so [`adapters/generation.py`](../src/fastrag/adapters/generation.py)
 needs no changes. The free tier allows 30 requests per minute, which is the single most
 likely thing to break a demo; the harness retries 429s with jittered backoff and honours
 `Retry-After`, and a fallback provider takes over when retries are exhausted.
 
-**Neon** — 0.5 GB Postgres, permanent. Render's own free Postgres deletes itself after 30
+**Neon** - 0.5 GB Postgres, permanent. Render's own free Postgres deletes itself after 30
 days, so it is not used for the registry.
 
-**Redis Cloud** — 30 MB including the RediSearch module, which the semantic cache needs for
+**Redis Cloud** - 30 MB including the RediSearch module, which the semantic cache needs for
 `FT.CREATE`. Upstash Redis does not support it; set `FASTRAG_SEMANTIC_CACHE_ENABLED=false`
 there and exact caching still works. The code also degrades to exact-only automatically if
 the module turns out to be missing at runtime, rather than failing the request.
 
-**Langfuse Cloud** — 50K units/month. Tracing is fail-open throughout, so an outage or a
+**Langfuse Cloud** - 50K units/month. Tracing is fail-open throughout, so an outage or a
 missing key costs observability and nothing else.
 
 ## Fingerprinting hosted models
@@ -62,7 +62,7 @@ Local artifacts are pinned by SHA256 of the ONNX file. Hosted models have no loc
 checksum, so the fingerprint component becomes `provider:model` and the revision becomes
 `hosted-api` (`Settings.active_dense_artifact`). This is a weaker guarantee, and honestly so:
 a provider can change a model behind a stable name without telling you. The mitigation is the
-golden gate — a silent model change shows up as a quality regression rather than passing
+golden gate - a silent model change shows up as a quality regression rather than passing
 unnoticed.
 
 `verify_configured_models` skips checksum verification when the active provider is hosted,

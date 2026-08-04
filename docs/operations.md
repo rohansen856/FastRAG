@@ -49,7 +49,7 @@ model; it makes quality and cost regressions difficult to diagnose.
 
 The configured fallback provider is not a silent fallback. When it engages, the response
 reports which provider actually answered in `generator_provider`, a `fastrag_fallbacks`
-counter increments, and the switch is traced. Alert on that counter — a fallback that nobody
+counter increments, and the switch is traced. Alert on that counter - a fallback that nobody
 notices is exactly the situation this rule exists to prevent.
 
 Changing embedding provider changes the embedding fingerprint and requires a re-index and a
@@ -85,8 +85,8 @@ require flushing Redis because they all change the namespace. Only remove FastRA
 prefixes when corrupt cache entries are confirmed. Do not flush the whole application Redis;
 it also stores ingestion jobs.
 
-The semantic cache needs the RediSearch module. Where it is unavailable — Upstash does not
-support `FT.CREATE` — set `FASTRAG_SEMANTIC_CACHE_ENABLED=false`; exact caching is unaffected.
+The semantic cache needs the RediSearch module. Where it is unavailable - Upstash does not
+support `FT.CREATE` - set `FASTRAG_SEMANTIC_CACHE_ENABLED=false`; exact caching is unaffected.
 The adapter also degrades to exact-only on its own if the module turns out to be missing at
 runtime, so a provider change cannot take the service down, but it will quietly cost you the
 semantic hit rate. Check the startup logs after changing Redis provider.

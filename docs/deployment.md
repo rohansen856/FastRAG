@@ -19,7 +19,7 @@ uv run python -m fastrag.calibrate \
 ```
 
 The result lives in Qdrant Cloud and Neon, so the Render service starts against a corpus
-that already exists. `config/calibration.json` is baked into the image at build time — the
+that already exists. `config/calibration.json` is baked into the image at build time - the
 service refuses to start without it, deliberately.
 
 Re-ingesting means re-running the script and redeploying. That is the cost of not having a
@@ -33,7 +33,7 @@ service. Free tier, Docker runtime, no disk, health check on `/health/ready`.
 The Dockerfile binds `0.0.0.0:${PORT:-8000}` because Render assigns the port at runtime.
 `FASTRAG_QUERY_API_KEY` and `FASTRAG_ADMIN_API_KEY` use `generateValue`, so Render mints them
 and you copy the query key into Vercel. Everything marked `sync: false` is prompted for on
-first deploy — those are the credentials from [providers.md](providers.md).
+first deploy - those are the credentials from [providers.md](providers.md).
 
 Two settings in the blueprint exist specifically because of the 512 MB / 0.1 CPU limit:
 
@@ -55,14 +55,14 @@ duration limit so long streams are not cut off.
 
 Set two environment variables:
 
-- `FASTRAG_API_URL` — your Render URL.
-- `FASTRAG_QUERY_TOKEN` — the query key Render generated.
+- `FASTRAG_API_URL` - your Render URL.
+- `FASTRAG_QUERY_TOKEN` - the query key Render generated.
 
 Neither is prefixed `NEXT_PUBLIC_`, deliberately.
 
 The token stays server-side. `web/app/api/rag/[...path]/route.ts` proxies browser requests
 and attaches it, so it never reaches the client bundle. This also means you do not need to
-add the Vercel origin to `FASTRAG_CORS_ORIGINS` — same-origin requests, no preflight, and no
+add the Vercel origin to `FASTRAG_CORS_ORIGINS` - same-origin requests, no preflight, and no
 API key in devtools. Set the CORS origin only if you deliberately want the browser calling
 the API directly.
 

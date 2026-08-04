@@ -13,20 +13,20 @@ Disable with `FASTRAG_GUARDRAILS_ENABLED=false`.
 The ordering is the design. Each check runs only if the previous one passed, and the
 expensive ones are last.
 
-**1. String checks — microseconds, no network.**
+**1. String checks - microseconds, no network.**
 
 - *Empty* input.
 - *Prompt injection*: patterns for instruction override ("ignore previous instructions",
   "developer mode"), system-prompt extraction, and injected `<system>` / `[system]` role
   markers.
 - *Unsafe content*: a narrow denylist covering weapons of mass destruction, targeted
-  violence, CSAM, and attacks on critical infrastructure. Narrow on purpose — a broad
+  violence, CSAM, and attacks on critical infrastructure. Narrow on purpose - a broad
   keyword denylist blocks legitimate factual questions and is worse than useless on a
   retrieval system whose answers are constrained to the corpus anyway.
 - *Language gate*: the detected script must be in `FASTRAG_GUARDRAIL_LANGUAGES`. Unknown
   scripts pass, because a false block is worse than a search that returns nothing.
 
-**2. Off-topic — one dot product.**
+**2. Off-topic - one dot product.**
 
 Cosine similarity between the query vector and the corpus centroid. This reuses the
 embedding the pipeline computed anyway, so the marginal cost is a dot product rather than
@@ -37,7 +37,7 @@ The centroid and its threshold are produced during calibration from the same hel
 the other thresholds. Without a calibration artifact the check is skipped rather than
 guessed at.
 
-**3. Model safety check — optional, one LLM call.**
+**3. Model safety check - optional, one LLM call.**
 
 Only for input the patterns did not settle, and only when a safety generator is configured.
 It uses JSON-schema-constrained output and **fails open**: if the classifier is down or slow,
@@ -53,7 +53,7 @@ into one generic refusal leaves the user unable to tell a fixable mistake from a
 decision.
 
 A guardrail block produces the `REFUSED` outcome, which is deliberately distinct from the
-`NO_ANSWER` that abstention produces. `REFUSED` responses are never cached — a rule change
+`NO_ANSWER` that abstention produces. `REFUSED` responses are never cached - a rule change
 or a re-index should take effect immediately rather than being pinned by a stale entry.
 
 ## Observability

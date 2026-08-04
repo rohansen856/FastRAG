@@ -138,7 +138,7 @@ export function VoiceConsole({ strategies, defaultStrategy }: Props) {
           </button>
           <span className="text-xs text-[var(--color-muted)]">
             {recording
-              ? "Recording — speak your question, then stop."
+              ? "Recording - speak your question, then stop."
               : "Record a question or type one below."}
           </span>
         </div>

@@ -75,7 +75,7 @@ version, collection name, and index state.
 
 Embedding models are never mixed. Changing dense model ID, revision, artifact checksum,
 normalization, dimension, or query prefix creates a different embedding fingerprint and
-requires a full re-index — including switching profile, since that changes the embedding
+requires a full re-index - including switching profile, since that changes the embedding
 provider. Query-time startup validates that the active index fingerprint matches the
 configured embedding fingerprint. Hosted models have no local file to checksum, so their
 fingerprint component is `provider:model` at revision `hosted-api`.
