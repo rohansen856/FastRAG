@@ -263,8 +263,10 @@ def create_app(
     @app.get("/v1/bench", dependencies=[Depends(require_query_key)])
     async def bench() -> JSONResponse:
         report = await anyio.to_thread.run_sync(_read_bench_report)
+        # Empty object (not 404) so UIs can poll without noisy console errors before
+        # scripts/bench-latency.py has published bench/results/summary.json.
         if report is None:
-            return JSONResponse({"detail": "no benchmark report available"}, 404)
+            return JSONResponse({})
         return JSONResponse(report)
 
     @app.get("/health/live", include_in_schema=False)
