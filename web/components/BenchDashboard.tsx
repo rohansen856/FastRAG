@@ -10,12 +10,24 @@ export function BenchDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/rag/v1/bench")
       .then(async (response) => {
-        if (!response.ok) throw new Error("no benchmark report published yet");
-        setSummary(await response.json());
+        if (cancelled) return;
+        if (!response.ok) throw new Error(`bench request failed (${response.status})`);
+        const payload = (await response.json()) as Summary;
+        if (!payload || Object.keys(payload).length === 0) {
+          setError("no benchmark report published yet");
+          return;
+        }
+        setSummary(payload);
       })
-      .catch((cause) => setError(String(cause.message ?? cause)));
+      .catch((cause) => {
+        if (!cancelled) setError(String(cause.message ?? cause));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const reports = Object.entries(summary ?? {}).filter(
