@@ -35,7 +35,8 @@ export async function streamEvents(
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+    // Upstream may emit CRLF (Starlette/uvicorn). Normalize so frame splits work.
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
     let boundary = buffer.indexOf("\n\n");
     while (boundary !== -1) {
