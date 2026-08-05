@@ -55,6 +55,7 @@ export function VoiceConsole({ strategies, defaultStrategy }: Props) {
     onChunk: (text: string) => setAnswer((current) => (current ? `${current} ${text}` : text)),
     onFinal: (value: QueryResponse) => {
       setResponse(value);
+      if (value.answer) setAnswer(value.answer);
       if (value.transcript) setTranscript(value.transcript);
     },
     onError: (message: string) => setError(message),
