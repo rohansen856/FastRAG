@@ -51,7 +51,7 @@ that cannot complete must not become a licence to answer without grounding.
 ## What you see
 
 The `crag` field on the response carries the action taken, the top reranker score, the
-number of strips kept, and the rewritten query when there was one. The web UI's decision
+number of strips kept, and the rewritten query when there was one. The `web/` console decision
 trace renders this directly, so a surprising answer can be traced to the band it fell into.
 A `crag_actions` Prometheus counter is labelled by action, which is the fastest signal that
 retrieval quality has drifted: a rising `incorrect` share means the corpus no longer covers

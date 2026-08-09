@@ -39,7 +39,7 @@ Both are benchmarked and both sets of numbers are published, clearly labelled. S
 - Python 3.12 for local development
 - Docker Engine with Compose v2
 - A streaming, OpenAI-compatible Chat Completions endpoint
-- Node 20+ for the web UI
+- Node 20+ for `website/` and/or `web/`
 - At least 24 vCPU, 64 GiB RAM, and NVMe storage for the stated 1M-chunk/20-QPS
   capacity-test envelope
 
@@ -147,15 +147,20 @@ curl -fsS -H "Authorization: Bearer $FASTRAG_QUERY_API_KEY" \
 `POST /v1/transcribe` does speech-to-text alone. Without an STT key configured, all three
 return 503 and text queries are unaffected. See [voice.md](docs/voice.md).
 
-## Web UI
+## Frontends
 
-```bash
-cd web && npm install && npm run dev
-```
+Two Next.js apps share the same server-side proxy pattern (`FASTRAG_API_URL` +
+`FASTRAG_QUERY_TOKEN`, never `NEXT_PUBLIC_`):
 
-Mic capture with a live waveform, streamed answers with citations, a per-stage latency panel,
-side-by-side chunking-strategy comparison, the guardrail and CRAG decision trace, and the
-benchmark dashboard. It proxies through a Next.js route so the API token stays server-side.
+| App | Role | Dev |
+|-----|------|-----|
+| [`website/`](website/) | Marketing landing: hero ask (text + mic), chat answers with citations, product story | `cd website && npm install && npm run dev` → http://localhost:3000 |
+| [`web/`](web/) | Operator console: latency panel, strategy comparison, CRAG/guardrail traces, bench dashboard | `cd web && npm install && npm run dev -- -p 3001` → http://localhost:3001 |
+
+Both talk to the API through `/api/rag/[...path]`. Copy each app’s `.env.example` to
+`.env.local` and point at `http://localhost:8000` (uvicorn) or your Compose/Caddy URL.
+On free hosted tiers, deploy the API on Render and either frontend on Vercel; see
+[deployment.md](docs/deployment.md).
 
 ## Evaluation gate
 
@@ -201,8 +206,9 @@ See [the runbook](docs/runbook.md) for backup, rollback, outage, quality, and co
   fingerprinting, and the non-silent fallback chain.
 - [Local setup](docs/local-setup.md): Python setup, Docker Compose, ingestion, local query, and
   Ollama `llama3.2:latest` smoke testing.
-- [Deployment](docs/deployment.md): Render and Vercel on free tiers, offline ingestion, and
-  what the hosted topology gives up.
+- [Deployment](docs/deployment.md): Render API + Vercel frontends (`website/` and/or `web/`),
+  offline ingestion, and what the hosted topology gives up.
+- [AGENTS.md](AGENTS.md) / [CURSOR.md](CURSOR.md): conventions for coding agents in this repo.
 - [Voice](docs/voice.md): endpoints, Sarvam and ElevenLabs, transcribe versus translate, and
   audio format.
 - [Chunking](docs/chunking.md): the six strategies, indexed versus generated text, and how to

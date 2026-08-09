@@ -64,6 +64,14 @@ In the hosted deployment the API is the only running service; Qdrant, Redis, Pos
 embedding, reranking, speech-to-text, generation, and tracing are all managed providers, and
 ingestion is an offline script rather than the worker.
 
+## Frontends
+
+- `website/`: Next.js marketing landing with hero text/voice ask and chat-style answers.
+- `web/`: Next.js operator console (latency, strategies, CRAG/guardrails, benchmarks).
+
+Both proxy `/api/rag/*` to FastAPI with a server-only query token. See
+[local-setup.md](local-setup.md) and [deployment.md](deployment.md).
+
 ## Data model and versioning
 
 Each chunk stored in Qdrant includes `chunk_id`, `document_id`, text, title, source URI, page,

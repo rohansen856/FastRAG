@@ -53,7 +53,7 @@ The strategy name is part of the cache namespace in
 serve a cached answer produced under a different strategy. It is also recorded in the index
 manifest alongside the languages and chunk count.
 
-The `StrategyCompare` panel in the web UI runs one query against each indexed strategy and
+The `StrategyCompare` panel in the `web/` console runs one query against each indexed strategy and
 shows outcome, sources, and latency side by side. That is the intended way to choose one:
 measure on your corpus, do not reason about it from first principles.
 

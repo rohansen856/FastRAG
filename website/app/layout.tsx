@@ -20,7 +20,7 @@ const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains'
 });
 
-/** Shapes Devanagari, Malayalam, Tamil, etc. — Instrument fonts are latin-only. */
+/** Shapes Devanagari, Malayalam, Tamil, etc. - Instrument fonts are latin-only. */
 const notoSans = Noto_Sans({
   subsets: [
     "latin",

@@ -52,11 +52,11 @@ optional, not a hard dependency.
 
 ## Audio format
 
-The browser records WebM/Opus, which neither provider reliably accepts, so
-[`web/lib/audio.ts`](../web/lib/audio.ts) decodes the recording through an `AudioContext` and
-re-encodes it as 16 kHz mono WAV before upload. Doing it client-side keeps ffmpeg off the
-512 MB Render instance, and 16 kHz mono is what the speech models expect anyway, so the
-conversion loses nothing.
+The browser records WebM/Opus, which neither provider reliably accepts, so both frontends
+re-encode client-side: [`web/lib/audio.ts`](../web/lib/audio.ts) and
+[`website/lib/audio.ts`](../website/lib/audio.ts) decode through an `AudioContext` and emit
+16 kHz mono WAV before upload. That keeps ffmpeg off the 512 MB Render instance, and 16 kHz
+mono is what the speech models expect, so the conversion loses nothing.
 
 Sarvam's REST endpoint caps at 30 seconds of audio. Longer recordings need the WebSocket
 streaming API, which is not wired up here.

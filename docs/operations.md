@@ -33,8 +33,8 @@ FastRAG can read the active index snapshot, query Qdrant, and return cited answe
 - Keep query and admin API keys separate.
 - On Render, let `generateValue` mint the API keys and mark every credential `sync: false` so
   it is never committed to the blueprint.
-- Keep the API token server-side in the Vercel proxy route; a token in the client bundle is a
-  public token.
+- Keep the API token server-side in each Vercel proxy (`website/` and `web/`); a token in the
+  client bundle is a public token.
 - Expose Grafana only behind authenticated infrastructure.
 - Use TLS for public FastRAG and Langfuse endpoints.
 - Keep `FASTRAG_TRACE_RAW_CONTENT=false` unless a controlled debugging session requires it.

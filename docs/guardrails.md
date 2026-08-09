@@ -59,7 +59,7 @@ or a re-index should take effect immediately rather than being pinned by a stale
 ## Observability
 
 The `guardrail` field on the response carries the rule, a detail string, and the similarity
-score for off-topic blocks. The web UI's decision trace shows it, so a user who is blocked
+score for off-topic blocks. The `web/` console decision trace shows it, so a user who is blocked
 can see which rule fired and why. `guardrail_blocks` is a Prometheus counter labelled by
 rule; a spike in `prompt_injection` is an attack signal, while a spike in `off_topic`
 usually means the corpus does not cover what people are asking for.

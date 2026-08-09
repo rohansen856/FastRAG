@@ -22,7 +22,7 @@ FASTRAG_PROFILE=cloud uv run python scripts/bench-latency.py \
   --url https://your-api.onrender.com --token "$FASTRAG_QUERY_API_KEY" --label cloud
 ```
 
-Both runs merge into `bench/results/summary.json`, which the UI's benchmark dashboard reads
+Both runs merge into `bench/results/summary.json`, which the `web/` console benchmark dashboard reads
 and `GET /v1/bench` serves. `--require-target` exits non-zero when the retrieval pipeline
 misses 200ms at P95, which is what CI should gate on.
 

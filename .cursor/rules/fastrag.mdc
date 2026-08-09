@@ -1,0 +1,13 @@
+---
+description: FastRAG repo layout, profiles, and frontend conventions
+alwaysApply: true
+---
+
+# FastRAG
+
+- Python API: `src/fastrag/`. Profiles via `FASTRAG_PROFILE` (`local` | `cloud`).
+- Frontends: `website/` (landing, :3000) and `web/` (console, :3001). Same proxy env:
+  `FASTRAG_API_URL`, `FASTRAG_QUERY_TOKEN` - never `NEXT_PUBLIC_` for the token.
+- Docs: `docs/` + root `README.md` / `AGENTS.md`. Prefer updating those over inventing parallel guides.
+- Never commit `.env`, secrets, or treat `config/calibration.example.json` as real calibration.
+- Protocols in `ports.py`; fail-closed on retrieval/generation, fail-open on cache/telemetry.

@@ -1,9 +1,14 @@
 # Deployment
 
 Two supported topologies: Docker Compose on a single host (the `local` profile, and the
-original production target), and free hosted tiers with the API on Render and the UI on
-Vercel (the `cloud` profile). This page covers the second; see
+original production target), and free hosted tiers with the API on Render and one or both
+Next.js frontends on Vercel (the `cloud` profile). This page covers the second; see
 [local-setup.md](local-setup.md) for the first.
+
+Frontends:
+
+- [`website/`](../website/) - public landing (hero ask, chat answers, product narrative).
+- [`web/`](../web/) - operator console (latency, strategy compare, CRAG/guardrail traces, bench).
 
 ## Before you deploy: ingest
 
@@ -47,24 +52,25 @@ Two settings in the blueprint exist specifically because of the 512 MB / 0.1 CPU
 Free services spin down after 15 minutes of inactivity and cold-start in several seconds.
 Warm it before a demo.
 
-## UI on Vercel
+## Frontends on Vercel
 
-Root directory `web/`. Vercel detects Next.js; [`web/vercel.json`](../web/vercel.json) only
-pins the region to `sin1` to sit near the Render instance and raises the proxy route's
-duration limit so long streams are not cut off.
+Deploy each app as its own Vercel project (or pick one). Set the Vercel **Root Directory**
+to `website/` or `web/`. For the console, [`web/vercel.json`](../web/vercel.json) pins the
+region to `sin1` (near a typical Render instance) and raises the proxy route duration limit
+so long SSE streams are not cut off. Mirror that config on `website/` if you need the same
+limits.
 
-Set two environment variables:
+In each project set:
 
 - `FASTRAG_API_URL` - your Render URL.
 - `FASTRAG_QUERY_TOKEN` - the query key Render generated.
 
 Neither is prefixed `NEXT_PUBLIC_`, deliberately.
 
-The token stays server-side. `web/app/api/rag/[...path]/route.ts` proxies browser requests
-and attaches it, so it never reaches the client bundle. This also means you do not need to
-add the Vercel origin to `FASTRAG_CORS_ORIGINS` - same-origin requests, no preflight, and no
-API key in devtools. Set the CORS origin only if you deliberately want the browser calling
-the API directly.
+The token stays server-side. `app/api/rag/[...path]/route.ts` in each app proxies browser
+requests and attaches it, so it never reaches the client bundle. You do not need to add the
+Vercel origin to `FASTRAG_CORS_ORIGINS` for proxy traffic. Set CORS only if the browser
+should call the API directly.
 
 ## Self-hosted Langfuse is opt-in
 
@@ -88,8 +94,8 @@ curl -fsS -H "Authorization: Bearer $KEY" https://your-api.onrender.com/build
 
 `/build` reports the release, profile, and the three active providers, which is the quickest
 way to confirm the deployed service is wired the way you think it is. Then drive a real voice
-query through the UI and check that transcript, citations, guardrail decision, CRAG trace,
-and Langfuse spans all appear.
+query through `website/` or `web/` and check that transcript, citations, guardrail decision,
+CRAG trace, and Langfuse spans all appear.
 
 ## What this topology gives up
 

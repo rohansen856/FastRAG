@@ -150,18 +150,31 @@ curl -N \
 
 Add `"strategy"` to compare chunking strategies, and `"language"` to filter to one language.
 
-## Run the web UI
+## Run the frontends
+
+Both apps proxy through `/api/rag/[...path]` so `FASTRAG_QUERY_TOKEN` stays server-side.
+`FASTRAG_CORS_ORIGINS` only matters if the browser calls the API directly.
+
+**Landing (`website/`)** - marketing page with hero text/mic ask and chat answers:
+
+```bash
+cd website
+cp .env.example .env.local     # FASTRAG_API_URL=http://localhost:8000
+npm install
+npm run dev                    # http://localhost:3000
+```
+
+**Console (`web/`)** - latency, strategies, CRAG/guardrails, bench dashboard:
 
 ```bash
 cd web
-cp .env.example .env.local     # point FASTRAG_API_URL at http://localhost
+cp .env.example .env.local     # FASTRAG_API_URL=http://localhost:8000
 npm install
-npm run dev
+npm run dev -- -p 3001         # http://localhost:3001
 ```
 
-The UI proxies through its own Next.js route so the API token stays server-side. Because the
-browser then talks to `localhost:3000` rather than the API directly, `FASTRAG_CORS_ORIGINS`
-only matters if you bypass the proxy.
+Use port `8000` when the API is host uvicorn; use `http://localhost` (no port) when Compose
+publishes through Caddy.
 
 ## Local Ollama smoke test
 

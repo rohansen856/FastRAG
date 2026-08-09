@@ -162,7 +162,7 @@
     transform: translateY(100%);
   }
 
-  /* Whole-word only — per-code-unit splits break Indic matras (dotted circles). */
+  /* Whole-word only - per-code-unit splits break Indic matras (dotted circles). */
   .animate-word-in {
     animation: word-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     opacity: 0;

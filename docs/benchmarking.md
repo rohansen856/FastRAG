@@ -95,8 +95,8 @@ FASTRAG_PROFILE=local uv run python scripts/bench-latency.py \
   --url http://localhost --token "$FASTRAG_QUERY_API_KEY" --label local --require-target
 ```
 
-Run it once per profile; both results merge into `bench/results/summary.json`, which the UI
-dashboard and `GET /v1/bench` read. Full detail in [latency.md](latency.md).
+Run it once per profile; both results merge into `bench/results/summary.json`, which the `web/`
+console dashboard and `GET /v1/bench` read. Full detail in [latency.md](latency.md).
 
 ## What to record
 
