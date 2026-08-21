@@ -53,8 +53,8 @@ Point frontend projects at this URL via `FASTRAG_API_URL` (and `FASTRAG_QUERY_TO
 `FASTRAG_QUERY_API_KEY`).
 
 Cold starts on Fluid compute rebuild the pipeline in lifespan; first request after idle is
-slower. Bundle size is dominated by Python deps — keep `web/` / `website/` out of this
-project.
+slower. Python `excludeFiles` in root `vercel.json` keeps `web/` / `website/` out of the
+function bundle; they must still exist in the Git upload for the frontend projects.
 
 ## API on Render (alternative)
 
@@ -76,6 +76,9 @@ Use **separate** Vercel projects from the FastAPI API project (do not set Root D
 |---------|----------------|------|
 | Landing | `website/` | Public marketing site + hero ask / chat |
 | Console (optional) | `web/` | Operator latency / CRAG / bench UI |
+
+Do not put `web/` or `website/` in the root [`.vercelignore`](../.vercelignore) — that file
+applies to every project in the monorepo and would strip the Next.js app before install.
 
 Each has its own `vercel.json` (`maxDuration` 60s on the RAG proxy for SSE). In each project set:
 

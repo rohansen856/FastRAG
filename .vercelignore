@@ -1,11 +1,9 @@
-# Uploaded with the API project (repo root). Frontend apps are separate Vercel projects.
+# Shared by every Vercel project in this monorepo. Do NOT list web/ or website/
+# here — frontend deploys use Root Directory website|web and would then have
+# no package.json / next. API bundle size is trimmed via vercel.json excludeFiles.
 .vercel
-web/
-website/
 docs/
 tests/
 bench/
 eval/results/
 .github/
-*.md
-!README.md
