@@ -3,67 +3,85 @@
 import { ArrowUpRight } from "lucide-react";
 import { AnimatedWave } from "./animated-wave";
 
-const footerLinks = {
+const GITHUB_URL = "https://github.com/rohansen856/FastRAG";
+
+const footerLinks: Record<
+  string,
+  { name: string; href: string; badge?: string; external?: boolean }[]
+> = {
   Product: [
     { name: "Features", href: "#features" },
     { name: "How it works", href: "#how-it-works" },
     { name: "Hosting", href: "#hosting" },
-    { name: "Integrations", href: "#integrations" },
+    { name: "Providers", href: "#integrations" },
   ],
-  Developers: [
-    { name: "Documentation", href: "#developers" },
-    { name: "API Reference", href: "#" },
-    { name: "SDK", href: "#developers" },
-    { name: "Status", href: "#" },
+  Pipeline: [
+    { name: "Guardrails", href: "#security" },
+    { name: "Benchmarks", href: "#studio" },
+    { name: "Latency", href: "#studio" },
+    { name: "The team", href: "#developers" },
   ],
-  Company: [
-    { name: "About", href: "#" },
-    { name: "Blog", href: "#" },
-    { name: "Careers", href: "#", badge: "Hiring" },
-    { name: "Contact", href: "#" },
+  Source: [
+    { name: "Repository", href: GITHUB_URL, external: true },
+    {
+      name: "Local setup",
+      href: `${GITHUB_URL}/blob/master/docs/local-setup.md`,
+      external: true,
+    },
+    {
+      name: "Providers",
+      href: `${GITHUB_URL}/blob/master/docs/providers.md`,
+      external: true,
+    },
+    {
+      name: "Latency",
+      href: `${GITHUB_URL}/blob/master/docs/latency.md`,
+      external: true,
+    },
   ],
-  Legal: [
-    { name: "Privacy", href: "#" },
-    { name: "Terms", href: "#" },
-    { name: "Security", href: "#security" },
+  Team: [
+    { name: "Rohan Sen", href: "https://github.com/rohansen856", external: true },
+    { name: "Vansh Gularia", href: "https://github.com/vanshg101", external: true },
+    { name: "Nitin Pandey", href: "https://github.com/Nitin192005", external: true },
   ],
 };
 
 const socialLinks = [
-  { name: "Twitter", href: "#" },
-  { name: "GitHub", href: "#" },
-  { name: "LinkedIn", href: "#" },
+  { name: "GitHub", href: GITHUB_URL },
+  { name: "Rohan", href: "https://www.linkedin.com/in/rohansen856" },
+  { name: "Vansh", href: "https://www.linkedin.com/in/vansh-gularia-bb6078243/" },
+  { name: "Nitin", href: "https://www.linkedin.com/in/nitin-pandey-dev" },
 ];
 
 export function FooterSection() {
   return (
     <footer className="relative border-t border-foreground/10">
-      {/* Animated wave background */}
       <div className="absolute inset-0 h-64 opacity-20 pointer-events-none overflow-hidden">
         <AnimatedWave />
       </div>
-      
+
       <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12">
-        {/* Main Footer */}
         <div className="py-16 lg:py-24">
           <div className="grid grid-cols-2 md:grid-cols-6 gap-12 lg:gap-8">
-            {/* Brand Column */}
             <div className="col-span-2">
               <a href="#" className="inline-flex items-center gap-2 mb-6">
+                <img src="/logo.svg" alt="" width={28} height={28} className="h-7 w-7" />
                 <span className="text-2xl font-display">FastRAG</span>
                 <span className="text-xs text-muted-foreground font-mono">OSS</span>
               </a>
 
               <p className="text-muted-foreground leading-relaxed mb-8 max-w-xs">
-                The platform for teams who ship. Build, deploy, and scale with unprecedented velocity.
+                Voice-enabled, multilingual RAG. Answers only from retrieved sources - or it
+                stays silent.
               </p>
 
-              {/* Social Links */}
-              <div className="flex gap-6">
+              <div className="flex flex-wrap gap-x-6 gap-y-3">
                 {socialLinks.map((link) => (
                   <a
                     key={link.name}
                     href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 group"
                   >
                     {link.name}
@@ -73,7 +91,6 @@ export function FooterSection() {
               </div>
             </div>
 
-            {/* Link Columns */}
             {Object.entries(footerLinks).map(([title, links]) => (
               <div key={title}>
                 <h3 className="text-sm font-medium mb-6">{title}</h3>
@@ -82,10 +99,13 @@ export function FooterSection() {
                     <li key={link.name}>
                       <a
                         href={link.href}
+                        {...(link.external
+                          ? { target: "_blank", rel: "noopener noreferrer" }
+                          : {})}
                         className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-2"
                       >
                         {link.name}
-                        {"badge" in link && link.badge && (
+                        {link.badge && (
                           <span className="text-xs px-2 py-0.5 bg-foreground text-background rounded-full">
                             {link.badge}
                           </span>
@@ -99,18 +119,19 @@ export function FooterSection() {
           </div>
         </div>
 
-        {/* Bottom Bar */}
         <div className="py-8 border-t border-foreground/10 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            2025 FastRAG. All rights reserved.
+            2026 FastRAG. Open source.
           </p>
 
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              All systems operational
-            </span>
-          </div>
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors font-mono"
+          >
+            github.com/rohansen856/FastRAG
+          </a>
         </div>
       </div>
     </footer>

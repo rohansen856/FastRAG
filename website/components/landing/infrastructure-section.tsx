@@ -62,15 +62,15 @@ export function InfrastructureSection() {
 
             <div className="grid grid-cols-3 gap-8">
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">6</div>
+                <div className="text-2xl md:text-4xl lg:text-5xl font-display mb-2">6</div>
                 <div className="text-sm text-muted-foreground">Languages indexed</div>
               </div>
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">2</div>
+                <div className="text-2xl md:text-4xl lg:text-5xl font-display mb-2">2</div>
                 <div className="text-sm text-muted-foreground">Profiles · local / cloud</div>
               </div>
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">&lt;200ms</div>
+                <div className="text-2xl md:text-4xl lg:text-5xl font-display mb-2">&lt;200ms</div>
                 <div className="text-sm text-muted-foreground">Retrieval P95 target</div>
               </div>
             </div>

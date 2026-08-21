@@ -89,7 +89,7 @@ export function HowItWorksSection() {
         }} />
       </div>
 
-      <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12">
+      <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12 min-w-0">
         {/* Header */}
         <div className="mb-16 lg:mb-24">
           <span className="inline-flex items-center gap-3 text-sm font-mono text-background/50 mb-6">
@@ -107,26 +107,26 @@ export function HowItWorksSection() {
           </h2>
         </div>
 
-        {/* Main content */}
-        <div className="grid lg:grid-cols-2 gap-16 lg:gap-24">
+        {/* Main content - min-w-0 so the code pane cannot stretch the grid */}
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-24 min-w-0">
           {/* Steps */}
-          <div className="space-y-0">
+          <div className="space-y-0 min-w-0">
             {steps.map((step, index) => (
               <button
                 key={step.number}
                 type="button"
                 onClick={() => setActiveStep(index)}
-                className={`w-full text-left py-8 border-b border-background/10 transition-all duration-500 group ${
+                className={`w-full max-w-full min-w-0 text-left py-8 border-b border-background/10 transition-all duration-500 group whitespace-normal ${
                   activeStep === index ? "opacity-100" : "opacity-40 hover:opacity-70"
                 }`}
               >
-                <div className="flex items-start gap-6">
-                  <span className="font-display text-3xl text-background/30">{step.number}</span>
-                  <div className="flex-1">
-                    <h3 className="text-2xl lg:text-3xl font-display mb-3 group-hover:translate-x-2 transition-transform duration-300">
+                <div className="flex items-start gap-4 sm:gap-6 min-w-0">
+                  <span className="font-display text-3xl text-background/30 shrink-0">{step.number}</span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-2xl lg:text-3xl font-display mb-3 break-words group-hover:translate-x-2 transition-transform duration-300">
                       {step.title}
                     </h3>
-                    <p className="text-background/60 leading-relaxed">
+                    <p className="text-background/60 leading-relaxed wrap-break-word">
                       {step.description}
                     </p>
                     
@@ -148,21 +148,21 @@ export function HowItWorksSection() {
           </div>
 
           {/* Code display */}
-          <div className="lg:sticky lg:top-32 self-start">
-            <div className="border border-background/10 overflow-hidden">
+          <div className="lg:sticky lg:top-32 self-start min-w-0 w-full">
+            <div className="border border-background/10 overflow-hidden max-w-full">
               {/* Window header */}
-              <div className="px-6 py-4 border-b border-background/10 flex items-center justify-between">
-                <div className="flex gap-2">
+              <div className="px-4 sm:px-6 py-4 border-b border-background/10 flex items-center justify-between gap-3">
+                <div className="flex gap-2 shrink-0">
                   <div className="w-3 h-3 rounded-full bg-background/20" />
                   <div className="w-3 h-3 rounded-full bg-background/20" />
                   <div className="w-3 h-3 rounded-full bg-background/20" />
                 </div>
-                <span className="text-xs font-mono text-background/40">{steps[activeStep].file}</span>
+                <span className="text-xs font-mono text-background/40 truncate">{steps[activeStep].file}</span>
               </div>
 
               {/* Code content */}
-              <div className="p-8 font-mono text-sm min-h-[280px]">
-                <pre className="text-background/70">
+              <div className="p-4 sm:p-8 font-mono text-sm min-h-[280px] overflow-x-auto">
+                <pre className="text-background/70 whitespace-pre-wrap break-all">
                   {steps[activeStep].code.split('\n').map((line, lineIndex) => (
                     <div 
                       key={`${activeStep}-${lineIndex}`} 
@@ -171,20 +171,10 @@ export function HowItWorksSection() {
                         animationDelay: `${lineIndex * 80}ms`,
                       }}
                     >
-                      <span className="text-background/20 select-none w-8 inline-block">{lineIndex + 1}</span>
-                      <span className="inline-flex">
-                        {line.split('').map((char, charIndex) => (
-                          <span
-                            key={`${activeStep}-${lineIndex}-${charIndex}`}
-                            className="code-char-reveal"
-                            style={{
-                              animationDelay: `${lineIndex * 80 + charIndex * 15}ms`,
-                            }}
-                          >
-                            {char === ' ' ? '\u00A0' : char}
-                          </span>
-                        ))}
+                      <span className="text-background/20 select-none inline-block w-6 sm:w-8 shrink-0">
+                        {lineIndex + 1}
                       </span>
+                      {line || " "}
                     </div>
                   ))}
                 </pre>
@@ -216,19 +206,6 @@ export function HowItWorksSection() {
           to {
             opacity: 1;
             transform: translateX(0);
-          }
-        }
-        
-        .code-char-reveal {
-          opacity: 0;
-          filter: blur(8px);
-          animation: charReveal 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-        
-        @keyframes charReveal {
-          to {
-            opacity: 1;
-            filter: blur(0);
           }
         }
       `}</style>
