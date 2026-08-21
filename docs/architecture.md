@@ -6,8 +6,8 @@ traceable quality/cost signals.
 
 Every external dependency sits behind a protocol in [`ports.py`](../src/fastrag/ports.py), so
 the same code runs in two deployment shapes: a hardened single-host Docker Compose topology
-with in-process models, and a fully hosted free-tier deployment on Render and Vercel.
-`FASTRAG_PROFILE` selects between them. See [providers.md](providers.md) and
+with in-process models, and a fully hosted free-tier deployment (API on Vercel or Render,
+UIs on Vercel). `FASTRAG_PROFILE` selects between them. See [providers.md](providers.md) and
 [deployment.md](deployment.md).
 
 ## Request path

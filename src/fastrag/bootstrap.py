@@ -197,7 +197,9 @@ async def build_pipeline(settings: Settings) -> tuple[QueryPipeline, RedisAnswer
         settings.active_reranker_revision,
         settings.active_reranker_artifact,
     )
-    calibration = Calibration.load(settings.calibration_path)
+    calibration = Calibration.load(
+        settings.calibration_path, raw_json=settings.calibration_json
+    )
     registry = PostgresIndexRegistry(settings.database_url)
     await registry.initialize()
     await registry.assert_embedding_fingerprint(embedding.digest)

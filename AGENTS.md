@@ -12,13 +12,14 @@ frontends; docs in `docs/`.
 | `website/` | Marketing landing (hero ask + chat). Dev: `:3000` |
 | `web/` | Operator console (latency, strategies, CRAG, bench). Dev: `:3001` |
 | `docs/` | Architecture, providers, deploy, voice, chunking, CRAG, etc. |
-| `compose.yaml` / `render.yaml` | Local stack vs Render Blueprint |
+| `compose.yaml` / `render.yaml` / `vercel.json` | Local stack; Render Blueprint; Vercel FastAPI function |
 | `.env.local.example` / `.env.cloud.example` | Profile templates - never commit real `.env` |
 
 ## Profiles
 
 `FASTRAG_PROFILE=local` - ONNX embed/rerank, Compose Qdrant/Redis/Postgres; sub-200ms retrieval target.
-`FASTRAG_PROFILE=cloud` - Jina, Qdrant Cloud, Groq, Sarvam, Neon, Redis Cloud, Langfuse Cloud; dense-only on free Render.
+`FASTRAG_PROFILE=cloud` - Jina, Qdrant Cloud, Groq, Sarvam, Neon, Redis Cloud, Langfuse Cloud;
+dense-only when sparse is off. Hosted API: Vercel FastAPI or Render Docker.
 
 Service refuses to start without real `config/calibration.json` (not the example schema).
 

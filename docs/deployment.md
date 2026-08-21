@@ -1,20 +1,19 @@
 # Deployment
 
-Two supported topologies: Docker Compose on a single host (the `local` profile, and the
-original production target), and free hosted tiers with the API on Render and one or both
-Next.js frontends on Vercel (the `cloud` profile). This page covers the second; see
-[local-setup.md](local-setup.md) for the first.
+Two supported topologies: Docker Compose on a single host (the `local` profile), and free
+hosted tiers with the **cloud** profile (hosted Qdrant/Jina/Groq/etc.). For cloud, the API
+can run on **Vercel** (Python FastAPI function) or **Render** (Docker); frontends stay on
+Vercel. This page covers hosted deploy; see [local-setup.md](local-setup.md) for Compose.
 
-Frontends:
+Frontends (separate Vercel projects; Root Directory = app folder):
 
-- [`website/`](../website/) - public landing (hero ask, chat answers, product narrative).
-- [`web/`](../web/) - operator console (latency, strategy compare, CRAG/guardrail traces, bench).
+- [`website/`](../website/) — public landing (hero ask, chat answers, product narrative).
+- [`web/`](../web/) — operator console (latency, strategy compare, CRAG/guardrail traces, bench).
 
 ## Before you deploy: ingest
 
-Render's free tier has no background workers and an ephemeral filesystem, so the RQ ingestion
-worker cannot run there. Ingestion is an offline step you run from your own machine against
-the hosted Qdrant, Postgres, and embedding provider:
+Neither Vercel nor Render free has an RQ worker or durable disk for ingestion. Run ingest and
+calibrate from your machine against hosted Qdrant, Postgres, and embedding:
 
 ```bash
 cp .env.cloud.example .env      # fill in every credential first
@@ -23,54 +22,69 @@ uv run python -m fastrag.calibrate \
   --golden eval/calibration.jsonl --cache-pairs eval/cache_pairs.jsonl
 ```
 
-The result lives in Qdrant Cloud and Neon, so the Render service starts against a corpus
-that already exists. `config/calibration.json` is baked into the image at build time - the
-service refuses to start without it, deliberately.
+The index lives in Qdrant Cloud + Neon. The API only needs `config/calibration.json` at
+startup (it refuses to boot without it). Re-ingest offline when the corpus changes.
 
-Re-ingesting means re-running the script and redeploying. That is the cost of not having a
-worker, and for a corpus that changes rarely it is the right trade.
+## API on Vercel
 
-## API on Render
+Use a **separate** Vercel project with **Root Directory** = repository root (not `web/` /
+`website/`). Vercel detects FastAPI from `pyproject.toml`; the entrypoint is declared there:
 
-[`render.yaml`](../render.yaml) is a Blueprint: point Render at the repo and it creates the
-service. Free tier, Docker runtime, no disk, health check on `/health/ready`.
+```toml
+[tool.vercel]
+entrypoint = "src.fastrag.api:app"
+```
 
-The Dockerfile binds `0.0.0.0:${PORT:-8000}` because Render assigns the port at runtime.
-`FASTRAG_QUERY_API_KEY` and `FASTRAG_ADMIN_API_KEY` use `generateValue`, so Render mints them
-and you copy the query key into Vercel. Everything marked `sync: false` is prompted for on
-first deploy - those are the credentials from [providers.md](providers.md).
+Root [`vercel.json`](../vercel.json) sets `maxDuration` to 300s on `src/fastrag/api.py` so
+voice + SSE streams are not cut off early, and excludes the Next.js trees from the Python
+bundle.
 
-Two settings in the blueprint exist specifically because of the 512 MB / 0.1 CPU limit:
+1. Import the Git repo as a new Vercel project (root directory `.`).
+2. Copy every variable from `.env.cloud.example` into Project → Environment Variables
+   (`FASTRAG_PROFILE=cloud`, API keys, Qdrant, Jina, Groq, Sarvam, Neon, Redis, Langfuse).
+   Also set `FASTRAG_SPARSE_RETRIEVAL_ENABLED=false` so the function does not need the heavy
+   BM25/onnxruntime path at query time.
+3. **Calibration:** `config/calibration.json` is gitignored (Git deploys omit it). Prefer
+   setting `FASTRAG_CALIBRATION_JSON` in Vercel to the full JSON object from that file.
+   Thresholds are not secrets; fingerprints must match the live embed/rerank providers.
+4. Redeploy. Confirm `GET /health/ready` and `GET /build` on the `*.vercel.app` URL.
 
-- `FASTRAG_SPARSE_RETRIEVAL_ENABLED=false`. The BM25 sparse leg comes from fastembed, which
-  imports onnxruntime, which does not fit alongside everything else. Retrieval runs
-  dense-only, costing some recall on rare terms and exact identifiers. Set it back to `true`
-  on any paid instance to restore hybrid RRF.
-- `FASTRAG_PROFILE=cloud`, which routes embedding and reranking to Jina rather than loading
-  ONNX models into the instance.
+Point frontend projects at this URL via `FASTRAG_API_URL` (and `FASTRAG_QUERY_TOKEN` =
+`FASTRAG_QUERY_API_KEY`).
 
-Free services spin down after 15 minutes of inactivity and cold-start in several seconds.
-Warm it before a demo.
+Cold starts on Fluid compute rebuild the pipeline in lifespan; first request after idle is
+slower. Bundle size is dominated by Python deps — keep `web/` / `website/` out of this
+project.
+
+## API on Render (alternative)
+
+[`render.yaml`](../render.yaml) is a Blueprint: free Docker web service, health check
+`/health/ready`, binds `0.0.0.0:$PORT`. `FASTRAG_QUERY_API_KEY` / `FASTRAG_ADMIN_API_KEY`
+use `generateValue`; credentials marked `sync: false` are prompted on first deploy.
+`config/calibration.json` is `COPY`’d into the image at build time — put it on the build
+context (same gitignore caveat as Vercel unless you bake it in CI).
+
+Blueprint defaults: `FASTRAG_PROFILE=cloud`, `FASTRAG_SPARSE_RETRIEVAL_ENABLED=false`.
+Free instances spin down after ~15 minutes idle.
 
 ## Frontends on Vercel
 
-Deploy each app as its own Vercel project (or pick one). Set the Vercel **Root Directory**
-to `website/` or `web/`. For the console, [`web/vercel.json`](../web/vercel.json) pins the
-region to `sin1` (near a typical Render instance) and raises the proxy route duration limit
-so long SSE streams are not cut off. Mirror that config on `website/` if you need the same
-limits.
+Use **separate** Vercel projects from the FastAPI API project (do not set Root Directory to
+`.` for these).
 
-In each project set:
+| Project | Root Directory | Role |
+|---------|----------------|------|
+| Landing | `website/` | Public marketing site + hero ask / chat |
+| Console (optional) | `web/` | Operator latency / CRAG / bench UI |
 
-- `FASTRAG_API_URL` - your Render URL.
-- `FASTRAG_QUERY_TOKEN` - the query key Render generated.
+Each has its own `vercel.json` (`maxDuration` 60s on the RAG proxy for SSE). In each project set:
 
-Neither is prefixed `NEXT_PUBLIC_`, deliberately.
+- `FASTRAG_API_URL` — your FastAPI Vercel URL (e.g. `https://fast-rag-….vercel.app`).
+- `FASTRAG_QUERY_TOKEN` — same value as `FASTRAG_QUERY_API_KEY` on the API.
 
-The token stays server-side. `app/api/rag/[...path]/route.ts` in each app proxies browser
-requests and attaches it, so it never reaches the client bundle. You do not need to add the
-Vercel origin to `FASTRAG_CORS_ORIGINS` for proxy traffic. Set CORS only if the browser
-should call the API directly.
+Neither is prefixed `NEXT_PUBLIC_`. Proxy route `app/api/rag/[...path]/route.ts` keeps the
+token server-side, so the landing origin does **not** need to be in `FASTRAG_CORS_ORIGINS`
+unless you bypass the proxy and call the API from the browser.
 
 ## Self-hosted Langfuse is opt-in
 
@@ -88,8 +102,9 @@ is identical either way.
 ## Verifying a deploy
 
 ```bash
-curl -fsS https://your-api.onrender.com/health/ready
-curl -fsS -H "Authorization: Bearer $KEY" https://your-api.onrender.com/build
+curl -fsS https://your-api.vercel.app/health/ready
+curl -fsS -H "Authorization: Bearer $KEY" https://your-api.vercel.app/build
+# or https://your-api.onrender.com/...
 ```
 
 `/build` reports the release, profile, and the three active providers, which is the quickest
@@ -99,7 +114,5 @@ CRAG trace, and Langfuse spans all appear.
 
 ## What this topology gives up
 
-No HA, no autoscaling, cold starts, dense-only retrieval, and a 30 requests/minute LLM
-ceiling. It is a demo and evaluation deployment, not a production one. The Compose topology
-in [architecture.md](architecture.md) remains the production target, and the same code runs
-on both.
+No HA for Compose; cold starts on free hosts; dense-only when sparse is off; LLM free-tier
+rate limits. Demo and evaluation, not production HA. Same application code on local and cloud.

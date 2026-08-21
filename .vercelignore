@@ -1,0 +1,11 @@
+# Uploaded with the API project (repo root). Frontend apps are separate Vercel projects.
+.vercel
+web/
+website/
+docs/
+tests/
+bench/
+eval/results/
+.github/
+*.md
+!README.md

@@ -13,7 +13,7 @@ Every dependency sits behind a protocol, so the same code runs in two shapes sel
   Nothing on the retrieval path crosses the internet, which is where the sub-200ms retrieval
   target is measured.
 - **`cloud`** - hosted free tiers only (Qdrant Cloud, Jina, Sarvam, Groq, Neon, Redis Cloud,
-  Langfuse Cloud), fitting Render's free web service with the UI on Vercel.
+  Langfuse Cloud). API on Vercel (Python FastAPI) or Render; UIs on Vercel.
 
 Both are benchmarked and both sets of numbers are published, clearly labelled. See
 [latency.md](docs/latency.md).
@@ -159,7 +159,7 @@ Two Next.js apps share the same server-side proxy pattern (`FASTRAG_API_URL` +
 
 Both talk to the API through `/api/rag/[...path]`. Copy each app’s `.env.example` to
 `.env.local` and point at `http://localhost:8000` (uvicorn) or your Compose/Caddy URL.
-On free hosted tiers, deploy the API on Render and either frontend on Vercel; see
+On free hosted tiers, deploy the API on Vercel or Render and either frontend on Vercel; see
 [deployment.md](docs/deployment.md).
 
 ## Evaluation gate

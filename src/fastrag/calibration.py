@@ -30,9 +30,10 @@ class Calibration:
         return max(self.crag_confident_threshold, self.reranker_threshold)
 
     @classmethod
-    def load(cls, path: Path) -> Calibration:
+    def from_dict(cls, payload: object, *, source: str) -> Calibration:
         try:
-            payload = json.loads(path.read_text())
+            if not isinstance(payload, dict):
+                raise TypeError("calibration payload must be a JSON object")
             calibration = cls(
                 reranker_threshold=float(payload["reranker_threshold"]),
                 reranker_fingerprint=str(payload["reranker_fingerprint"]),
@@ -55,8 +56,8 @@ class Calibration:
                     else None
                 ),
             )
-        except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            raise CalibrationError(f"invalid calibration artifact {path}: {exc}") from exc
+        except (KeyError, TypeError, ValueError) as exc:
+            raise CalibrationError(f"invalid calibration artifact {source}: {exc}") from exc
         if calibration.false_answer_rate > 0.05:
             raise CalibrationError("calibration false_answer_rate exceeds 0.05")
         if calibration.sample_count < 30:
@@ -67,6 +68,20 @@ class Calibration:
         ):
             raise CalibrationError("cache distance threshold must be in [0, 2]")
         return calibration
+
+    @classmethod
+    def load(cls, path: Path, *, raw_json: str | None = None) -> Calibration:
+        if raw_json is not None and raw_json.strip():
+            try:
+                payload = json.loads(raw_json)
+            except json.JSONDecodeError as exc:
+                raise CalibrationError(f"invalid calibration JSON: {exc}") from exc
+            return cls.from_dict(payload, source="FASTRAG_CALIBRATION_JSON")
+        try:
+            payload = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise CalibrationError(f"invalid calibration artifact {path}: {exc}") from exc
+        return cls.from_dict(payload, source=str(path))
 
     def validate(self, *, reranker_fingerprint: str, embedding_fingerprint: str) -> None:
         if self.reranker_fingerprint != reranker_fingerprint:

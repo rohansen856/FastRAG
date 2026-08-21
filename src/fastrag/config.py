@@ -83,6 +83,8 @@ class Settings(BaseSettings):
     max_answer_tokens: int = 200
 
     calibration_path: Path = Path("config/calibration.json")
+    # Prefer this on Vercel (gitignored file is not uploaded). Paste the JSON object.
+    calibration_json: str | None = None
     prompt_path: Path = Path("config/system_prompt.txt")
     prompt_version: str = "v1"
 

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "src/fastrag/api.py": {
+      "maxDuration": 300,
+      "excludeFiles": "{web/**,website/**,tests/**,docs/**,bench/**,eval/**,scripts/**,**/*.md}"
+    }
+  }
+}

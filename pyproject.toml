@@ -50,6 +50,11 @@ fastrag = "fastrag.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/fastrag"]
 
+# Vercel Python runtime: FastAPI lives under src/, not a default entrypoint name.
+# https://vercel.com/docs/frameworks/backend/fastapi#exporting-the-fastapi-application
+[tool.vercel]
+entrypoint = "src.fastrag.api:app"
+
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
