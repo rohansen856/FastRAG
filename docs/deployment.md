@@ -7,8 +7,8 @@ Vercel. This page covers hosted deploy; see [local-setup.md](local-setup.md) for
 
 Frontends (separate Vercel projects; Root Directory = app folder):
 
-- [`website/`](../website/) — public landing (hero ask, chat answers, product narrative).
-- [`web/`](../web/) — operator console (latency, strategy compare, CRAG/guardrail traces, bench).
+- [`website/`](../website/) - public landing (hero ask, chat answers, product narrative).
+- [`web/`](../web/) - operator console (latency, strategy compare, CRAG/guardrail traces, bench).
 
 ## Before you deploy: ingest
 
@@ -50,9 +50,9 @@ bundle.
    - `FASTRAG_JINA_API_KEY`
    - `FASTRAG_LLM_BASE_URL`, `FASTRAG_LLM_API_KEY`, `FASTRAG_LLM_MODEL`
    - `FASTRAG_DATABASE_URL`, `FASTRAG_REDIS_URL`
-   - `FASTRAG_CALIBRATION_JSON` — paste the full JSON from local
+   - `FASTRAG_CALIBRATION_JSON` - paste the full JSON from local
      `config/calibration.json` (gitignored; without this, startup fails)
-3. Redeploy. Open `/health/ready` — on failure it returns `{"status":"not_ready","error":"..."}`
+3. Redeploy. Open `/health/ready` - on failure it returns `{"status":"not_ready","error":"..."}`
    instead of a blank 500. Fix whatever `error` names, then confirm `/build` with the admin key.
 
 Point frontend projects at this URL via `FASTRAG_API_URL` (and `FASTRAG_QUERY_TOKEN` =
@@ -67,7 +67,7 @@ function bundle; they must still exist in the Git upload for the frontend projec
 [`render.yaml`](../render.yaml) is a Blueprint: free Docker web service, health check
 `/health/ready`, binds `0.0.0.0:$PORT`. `FASTRAG_QUERY_API_KEY` / `FASTRAG_ADMIN_API_KEY`
 use `generateValue`; credentials marked `sync: false` are prompted on first deploy.
-`config/calibration.json` is `COPY`’d only if present in the build context — it is
+`config/calibration.json` is `COPY`’d only if present in the build context - it is
 gitignored, so production must set `FASTRAG_CALIBRATION_JSON` (declared in
 [`render.yaml`](../render.yaml)). The image entrypoint writes that env var to
 `/app/config/calibration.json` before uvicorn starts.
@@ -85,13 +85,13 @@ Use **separate** Vercel projects from the FastAPI API project (do not set Root D
 | Landing | `website/` | Public marketing site + hero ask / chat |
 | Console (optional) | `web/` | Operator latency / CRAG / bench UI |
 
-Do not put `web/` or `website/` in the root [`.vercelignore`](../.vercelignore) — that file
+Do not put `web/` or `website/` in the root [`.vercelignore`](../.vercelignore) - that file
 applies to every project in the monorepo and would strip the Next.js app before install.
 
 Each has its own `vercel.json` (`maxDuration` 60s on the RAG proxy for SSE). In each project set:
 
-- `FASTRAG_API_URL` — your FastAPI Vercel URL (e.g. `https://fast-rag-….vercel.app`).
-- `FASTRAG_QUERY_TOKEN` — same value as `FASTRAG_QUERY_API_KEY` on the API.
+- `FASTRAG_API_URL` - your FastAPI Vercel URL (e.g. `https://fast-rag-….vercel.app`).
+- `FASTRAG_QUERY_TOKEN` - same value as `FASTRAG_QUERY_API_KEY` on the API.
 
 Neither is prefixed `NEXT_PUBLIC_`. Proxy route `app/api/rag/[...path]/route.ts` keeps the
 token server-side, so the landing origin does **not** need to be in `FASTRAG_CORS_ORIGINS`
