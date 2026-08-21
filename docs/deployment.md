@@ -40,14 +40,20 @@ voice + SSE streams are not cut off early, and excludes the Next.js trees from t
 bundle.
 
 1. Import the Git repo as a new Vercel project (root directory `.`).
-2. Copy every variable from `.env.cloud.example` into Project → Environment Variables
-   (`FASTRAG_PROFILE=cloud`, API keys, Qdrant, Jina, Groq, Sarvam, Neon, Redis, Langfuse).
-   Also set `FASTRAG_SPARSE_RETRIEVAL_ENABLED=false` so the function does not need the heavy
-   BM25/onnxruntime path at query time.
-3. **Calibration:** `config/calibration.json` is gitignored (Git deploys omit it). Prefer
-   setting `FASTRAG_CALIBRATION_JSON` in Vercel to the full JSON object from that file.
-   Thresholds are not secrets; fingerprints must match the live embed/rerank providers.
-4. Redeploy. Confirm `GET /health/ready` and `GET /build` on the `*.vercel.app` URL.
+2. Copy every variable from `.env.cloud.example` / your local `.env` into Project →
+   Environment Variables. Minimum for a working boot:
+   - `FASTRAG_PROFILE=cloud`
+   - `FASTRAG_ENVIRONMENT=production` (or `development`)
+   - `FASTRAG_SPARSE_RETRIEVAL_ENABLED=false`
+   - `FASTRAG_QUERY_API_KEY`, `FASTRAG_ADMIN_API_KEY`
+   - `FASTRAG_QDRANT_URL`, `FASTRAG_QDRANT_API_KEY`
+   - `FASTRAG_JINA_API_KEY`
+   - `FASTRAG_LLM_BASE_URL`, `FASTRAG_LLM_API_KEY`, `FASTRAG_LLM_MODEL`
+   - `FASTRAG_DATABASE_URL`, `FASTRAG_REDIS_URL`
+   - `FASTRAG_CALIBRATION_JSON` — paste the full JSON from local
+     `config/calibration.json` (gitignored; without this, startup fails)
+3. Redeploy. Open `/health/ready` — on failure it returns `{"status":"not_ready","error":"..."}`
+   instead of a blank 500. Fix whatever `error` names, then confirm `/build` with the admin key.
 
 Point frontend projects at this URL via `FASTRAG_API_URL` (and `FASTRAG_QUERY_TOKEN` =
 `FASTRAG_QUERY_API_KEY`).
@@ -61,8 +67,10 @@ function bundle; they must still exist in the Git upload for the frontend projec
 [`render.yaml`](../render.yaml) is a Blueprint: free Docker web service, health check
 `/health/ready`, binds `0.0.0.0:$PORT`. `FASTRAG_QUERY_API_KEY` / `FASTRAG_ADMIN_API_KEY`
 use `generateValue`; credentials marked `sync: false` are prompted on first deploy.
-`config/calibration.json` is `COPY`’d into the image at build time — put it on the build
-context (same gitignore caveat as Vercel unless you bake it in CI).
+`config/calibration.json` is `COPY`’d only if present in the build context — it is
+gitignored, so production must set `FASTRAG_CALIBRATION_JSON` (declared in
+[`render.yaml`](../render.yaml)). The image entrypoint writes that env var to
+`/app/config/calibration.json` before uvicorn starts.
 
 Blueprint defaults: `FASTRAG_PROFILE=cloud`, `FASTRAG_SPARSE_RETRIEVAL_ENABLED=false`.
 Free instances spin down after ~15 minutes idle.

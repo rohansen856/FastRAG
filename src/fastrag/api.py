@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import os
 import secrets
 import uuid
 from collections.abc import AsyncIterator
@@ -37,6 +39,8 @@ from .observability import observation
 from .pipeline import PipelineUnavailable, QueryPipeline
 from .ports import Transcriber
 
+logger = logging.getLogger("fastrag.api")
+
 BENCH_REPORT_PATH = Path("bench/results/summary.json")
 
 AudioUpload = Annotated[UploadFile, File(description="Recorded question audio")]
@@ -53,19 +57,33 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        if pipeline is None:
-            built_pipeline, cache = await build_pipeline(configured)
-            app.state.pipeline = built_pipeline
-            app.state.cache = cache
-        else:
-            app.state.pipeline = pipeline
-        app.state.transcriber = transcriber or build_transcriber(configured)
-        app.state.ready = True
+        # Never raise out of lifespan on Vercel: a raised exception becomes
+        # "Application startup failed" for every route, including /docs.
+        app.state.startup_error = None
+        app.state.ready = False
+        try:
+            if os.getenv("VERCEL") and configured.profile != "cloud":
+                raise RuntimeError(
+                    "FASTRAG_PROFILE must be 'cloud' on Vercel "
+                    f"(got {configured.profile!r})"
+                )
+            if pipeline is None:
+                built_pipeline, cache = await build_pipeline(configured)
+                app.state.pipeline = built_pipeline
+                app.state.cache = cache
+            else:
+                app.state.pipeline = pipeline
+            app.state.transcriber = transcriber or build_transcriber(configured)
+            app.state.ready = True
+        except Exception as exc:
+            app.state.startup_error = f"{type(exc).__name__}: {exc}"
+            logger.exception("FastRAG pipeline startup failed")
         yield
         app.state.ready = False
 
     app = FastAPI(title="FastRAG", version=__version__, lifespan=lifespan)
     app.state.ready = False
+    app.state.startup_error = None
     app.state.transcriber = transcriber
 
     # The voice UI is deployed separately on Vercel, so it is always cross-origin.
@@ -275,8 +293,13 @@ def create_app(
 
     @app.get("/health/ready", include_in_schema=False)
     async def ready(request: Request) -> JSONResponse:
-        code = 200 if request.app.state.ready else 503
-        return JSONResponse({"status": "ready" if code == 200 else "not_ready"}, code)
+        if request.app.state.ready:
+            return JSONResponse({"status": "ready"})
+        body: dict[str, str] = {"status": "not_ready"}
+        error = getattr(request.app.state, "startup_error", None)
+        if error:
+            body["error"] = str(error)
+        return JSONResponse(body, status_code=503)
 
     @app.get("/build", dependencies=[Depends(require_admin_key)])
     async def build() -> dict[str, str]:

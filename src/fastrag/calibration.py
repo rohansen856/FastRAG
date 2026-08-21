@@ -77,6 +77,11 @@ class Calibration:
             except json.JSONDecodeError as exc:
                 raise CalibrationError(f"invalid calibration JSON: {exc}") from exc
             return cls.from_dict(payload, source="FASTRAG_CALIBRATION_JSON")
+        if not path.is_file():
+            raise CalibrationError(
+                f"missing {path}; set FASTRAG_CALIBRATION_JSON to the contents of "
+                "config/calibration.json (the file is gitignored and not in the image)"
+            )
         try:
             payload = json.loads(path.read_text())
         except (OSError, json.JSONDecodeError) as exc:

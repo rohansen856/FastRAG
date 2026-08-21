@@ -14,5 +14,7 @@ WORKDIR /app
 COPY --chown=fastrag:fastrag config ./config
 USER fastrag
 EXPOSE 8000
-CMD ["sh", "-c", "exec uvicorn fastrag.api:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]
+# calibration.json is gitignored, so COPY config/ only brings the prompt. Materialize
+# it from FASTRAG_CALIBRATION_JSON when that env var is set (Render / any Docker host).
+CMD ["sh", "-c", "if [ -n \"$FASTRAG_CALIBRATION_JSON\" ]; then printf '%s\\n' \"$FASTRAG_CALIBRATION_JSON\" > /app/config/calibration.json; fi; exec uvicorn fastrag.api:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]
 

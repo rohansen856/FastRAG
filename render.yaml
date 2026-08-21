@@ -61,3 +61,6 @@ services:
         sync: false
       - key: FASTRAG_LANGFUSE_BASE_URL
         value: https://cloud.langfuse.com
+      # Paste contents of local config/calibration.json (gitignored; required to boot).
+      - key: FASTRAG_CALIBRATION_JSON
+        sync: false
