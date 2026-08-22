@@ -4,11 +4,10 @@ import asyncio
 
 from .bootstrap import build_embedder_and_reranker, embedding_fingerprint
 from .config import Settings
+from .documents import SUPPORTED_SUFFIXES
 from .indexing import IndexBuilder
 from .model_artifacts import verify_configured_models
 from .registry import PostgresIndexRegistry
-
-SUPPORTED_SUFFIXES = {".pdf", ".md", ".markdown", ".txt"}
 
 
 def rebuild_documents() -> dict[str, str]:

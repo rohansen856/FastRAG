@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from .documents import SUPPORTED_SUFFIXES
 from .jobs import rebuild_documents
 
 
@@ -20,7 +21,7 @@ def main() -> None:
         target = settings.data_dir / "documents"
         target.mkdir(parents=True, exist_ok=True)
         for source in args.paths:
-            if source.suffix.casefold() not in {".pdf", ".md", ".markdown", ".txt"}:
+            if source.suffix.casefold() not in SUPPORTED_SUFFIXES:
                 parser.error(f"unsupported document: {source}")
             (target / source.name).write_bytes(source.read_bytes())
         print(json.dumps(rebuild_documents(), indent=2))

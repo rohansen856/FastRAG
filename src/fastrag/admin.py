@@ -10,7 +10,8 @@ from rq import Queue
 from rq.job import Job
 
 from .config import Settings
-from .jobs import SUPPORTED_SUFFIXES, rebuild_documents
+from .documents import SUPPORTED_SUFFIXES
+from .jobs import rebuild_documents
 
 DOCUMENT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
