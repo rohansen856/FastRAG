@@ -108,8 +108,15 @@ curl -fsS -H "Authorization: Bearer $FASTRAG_ADMIN_API_KEY" \
   https://localhost/v1/admin/documents
 ```
 
-Supported input is PDF with extractable text, Markdown, and plain text. Image-only PDFs
-fail with an OCR-required error; OCR is intentionally outside v1.
+Supported input is PDF with extractable text, Markdown, plain text, HTML, JSON, CSV,
+YAML, XML, RST, and other UTF-8 text formats. Image-only PDFs fail with an OCR-required
+error; OCR is intentionally outside v1.
+
+### Upload and ask (website)
+
+The landing hero accepts PDF and text documents via `POST /v1/documents/ingest` (query
+auth). Files are chunked and upserted into the **active** Qdrant collection; queries can
+scope to `document_id` or search the full corpus with the hero toggle.
 
 ## Query API
 
