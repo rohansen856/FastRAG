@@ -2,7 +2,8 @@
 # here - frontend deploys use Root Directory website|web and would then have
 # no package.json / next. API bundle size is trimmed via vercel.json excludeFiles.
 .vercel
-docs/
+# Do not add `docs/` here - it matches website/app/docs/ and breaks /docs routes.
+# API bundle size is trimmed via root vercel.json excludeFiles; website needs repo docs/ for SSG.
 tests/
 bench/
 eval/results/

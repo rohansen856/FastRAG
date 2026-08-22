@@ -150,7 +150,7 @@ function friendlyError(raw: string): string {
     return "The answer service dropped the connection. Wait a few seconds and try again.";
   }
   if (lower.includes("deadline exceeded") || lower.includes("503")) {
-    return "That took too long upstream. Try again — the first cloud query is often slower.";
+    return "That took too long upstream. Try again - the first cloud query is often slower.";
   }
   if (lower.includes("query_token") || lower.includes("not configured")) {
     return "This site isn't configured to talk to the API yet.";

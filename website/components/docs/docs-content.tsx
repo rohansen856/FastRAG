@@ -35,7 +35,7 @@ export function DocsIndex() {
         </span>
         <h1 className="text-4xl lg:text-5xl font-display tracking-tight mb-4">Docs</h1>
         <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
-          Architecture, local setup, deployment, and pipeline deep-dives — rendered from the
+          Architecture, local setup, deployment, and pipeline deep-dives - rendered from the
           same markdown in the repo.
         </p>
       </div>
