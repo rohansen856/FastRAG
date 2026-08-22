@@ -176,7 +176,7 @@ class IndexBuilder:
         )
         # Strategy and language are filtered on every query, so they need
         # payload indexes or Qdrant falls back to a full scan.
-        for field in ("strategy", "language"):
+        for field in ("strategy", "language", "document_id"):
             self._client.create_payload_index(
                 collection_name=collection,
                 field_name=field,
