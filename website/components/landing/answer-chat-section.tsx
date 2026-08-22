@@ -21,9 +21,19 @@ interface Props {
   streaming: boolean;
   response: QueryResponse | null;
   error: string | null;
+  attachedCount?: number;
+  scopeMode?: "document" | "corpus" | null;
 }
 
-export function AnswerChatSection({ question, answer, streaming, response, error }: Props) {
+export function AnswerChatSection({
+  question,
+  answer,
+  streaming,
+  response,
+  error,
+  attachedCount = 0,
+  scopeMode,
+}: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const visible = Boolean(streaming || answer || response || error);
 
@@ -77,6 +87,15 @@ export function AnswerChatSection({ question, answer, streaming, response, error
                 {response?.crag?.action && response.crag.action !== "disabled" && (
                   <span className="rounded-full border border-foreground/15 px-2.5 py-0.5 text-xs font-mono text-muted-foreground">
                     CRAG · {response.crag.action}
+                  </span>
+                )}
+                {attachedCount > 0 && scopeMode && (
+                  <span className="rounded-full border border-foreground/15 px-2.5 py-0.5 text-xs font-mono text-muted-foreground">
+                    {scopeMode === "document"
+                      ? attachedCount === 1
+                        ? "Attached document"
+                        : `${attachedCount} attached documents`
+                      : "Full corpus"}
                   </span>
                 )}
                 {streaming && !displayAnswer && (

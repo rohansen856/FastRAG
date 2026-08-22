@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, Square } from "lucide-react";
-import { textQuery, voiceQuery } from "@/lib/api";
+import { Loader2, Mic, Paperclip, Settings, Square, X } from "lucide-react";
+import { ingestDocument, deleteDocument, textQuery, voiceQuery } from "@/lib/api";
+import { MAX_ATTACHMENTS, UPLOAD_ACCEPT, validateUploadFile } from "@/lib/upload";
 import { MicRecorder } from "@/lib/audio";
-import type { QueryResponse, Transcript } from "@/lib/types";
+import type { IngestResult, QueryResponse, Transcript } from "@/lib/types";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AnimatedSphere } from "./animated-sphere";
 import { AnswerChatSection } from "./answer-chat-section";
+import { FileTypeIcon } from "./file-type-icon";
 
 const words = [
   "English",
@@ -29,6 +32,97 @@ const words = [
 /** Same defaults as the old VoiceConsole when language/strategy selectors are absent. */
 const DEFAULT_STRATEGY = "sentence";
 const DEFAULT_LANGUAGE = "";
+type ScopeMode = "document" | "corpus";
+
+type PendingUpload = {
+  id: string;
+  filename: string;
+};
+
+function ScopeSettings({
+  scopeMode,
+  onScopeChange,
+}: {
+  scopeMode: ScopeMode;
+  onScopeChange: (mode: ScopeMode) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="Search scope settings"
+          className={`inline-flex h-[26px] w-[26px] items-center justify-center rounded-full border border-foreground/15 bg-background/60 transition-colors hover:bg-background/80 ${
+            scopeMode === "corpus" ? "text-foreground" : "text-muted-foreground"
+          }`}
+        >
+          <Settings className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-52 p-2 text-xs font-mono">
+        <p className="px-2 py-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+          Search scope
+        </p>
+        <button
+          type="button"
+          onClick={() => onScopeChange("document")}
+          className={`flex w-full rounded-md px-2 py-2 text-left transition-colors ${
+            scopeMode === "document"
+              ? "bg-foreground text-background"
+              : "text-foreground hover:bg-foreground/5"
+          }`}
+        >
+          Attached files
+        </button>
+        <button
+          type="button"
+          onClick={() => onScopeChange("corpus")}
+          className={`mt-0.5 flex w-full rounded-md px-2 py-2 text-left transition-colors ${
+            scopeMode === "corpus"
+              ? "bg-foreground text-background"
+              : "text-foreground hover:bg-foreground/5"
+          }`}
+        >
+          Entire corpus
+        </button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function AttachmentChip({
+  filename,
+  loading = false,
+  onRemove,
+}: {
+  filename: string;
+  loading?: boolean;
+  onRemove?: () => void;
+}) {
+  return (
+    <span className="relative inline-flex items-center gap-1.5 rounded-full border border-foreground/15 bg-background/60 px-2.5 py-1">
+      <span className="relative flex h-4 w-4 items-center justify-center">
+        <FileTypeIcon filename={filename} disabled={loading} />
+        {loading && (
+          <Loader2
+            className="absolute h-3 w-3 animate-spin text-foreground/70"
+            aria-label="Indexing document"
+          />
+        )}
+      </span>
+      {!loading && onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remove attachment"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      )}
+    </span>
+  );
+}
 
 function friendlyError(raw: string): string {
   const text = raw.trim();
@@ -91,8 +185,16 @@ export function HeroSection() {
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
   const [response, setResponse] = useState<QueryResponse | null>(null);
+  const [attachedDocs, setAttachedDocs] = useState<IngestResult[]>([]);
+  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
+  const [scopeMode, setScopeMode] = useState<ScopeMode>("document");
+
+  const uploading = pendingUploads.length > 0;
 
   const recorderRef = useRef<MicRecorder | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const attachedDocsRef = useRef(attachedDocs);
+  attachedDocsRef.current = attachedDocs;
   const sampleLevels = useCallback(() => recorderRef.current?.levels() ?? null, []);
 
   useEffect(() => {
@@ -107,6 +209,31 @@ export function HeroSection() {
   }, []);
 
   useEffect(() => () => recorderRef.current?.cancel(), []);
+
+  useEffect(() => {
+    const purge = () => {
+      for (const doc of attachedDocsRef.current) {
+        void deleteDocument(doc.document_id);
+      }
+    };
+    window.addEventListener("pagehide", purge);
+    return () => {
+      window.removeEventListener("pagehide", purge);
+      purge();
+    };
+  }, []);
+
+  const queryOptions = useCallback(
+    () => ({
+      strategy: DEFAULT_STRATEGY,
+      language: DEFAULT_LANGUAGE || undefined,
+      documentIds:
+        attachedDocs.length && scopeMode === "document"
+          ? attachedDocs.map((doc) => doc.document_id)
+          : undefined,
+    }),
+    [attachedDocs, scopeMode],
+  );
 
   const reset = () => {
     setAnswer("");
@@ -152,11 +279,7 @@ export function HeroSection() {
     try {
       const { blob } = await recorder.stop();
       recorderRef.current = null;
-      await voiceQuery(
-        blob,
-        { strategy: DEFAULT_STRATEGY, language: DEFAULT_LANGUAGE || undefined },
-        handlers,
-      );
+      await voiceQuery(blob, queryOptions(), handlers);
     } catch (cause) {
       setError(friendlyError(String(cause)));
     } finally {
@@ -171,11 +294,7 @@ export function HeroSection() {
     setAskedQuestion(asked);
     setBusy(true);
     try {
-      await textQuery(
-        asked,
-        { strategy: DEFAULT_STRATEGY, language: DEFAULT_LANGUAGE || undefined },
-        handlers,
-      );
+      await textQuery(asked, queryOptions(), handlers);
     } catch (cause) {
       setError(friendlyError(String(cause)));
     } finally {
@@ -183,10 +302,100 @@ export function HeroSection() {
     }
   };
 
+  const onFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (!files.length) return;
+
+    const remaining = MAX_ATTACHMENTS - attachedDocs.length;
+    if (remaining <= 0) {
+      setError(`You can attach up to ${MAX_ATTACHMENTS} files.`);
+      return;
+    }
+    const batch = files.slice(0, remaining);
+    if (files.length > remaining) {
+      setError(`Only ${remaining} more file${remaining === 1 ? "" : "s"} can be attached.`);
+    } else {
+      setError(null);
+    }
+
+    for (const file of batch) {
+      const rejection = validateUploadFile(file);
+      if (rejection) {
+        setError(rejection);
+        return;
+      }
+    }
+
+    const pending = batch.map((file) => ({
+      id: crypto.randomUUID(),
+      filename: file.name,
+    }));
+    setPendingUploads((current) => [...current, ...pending]);
+    try {
+      for (let index = 0; index < batch.length; index += 1) {
+        const result = await ingestDocument(batch[index]);
+        setAttachedDocs((current) => [...current, result]);
+        setPendingUploads((current) => current.filter((item) => item.id !== pending[index].id));
+      }
+      setScopeMode("document");
+    } catch (cause) {
+      setPendingUploads((current) =>
+        current.filter((item) => !pending.some((entry) => entry.id === item.id)),
+      );
+      setError(friendlyError(String(cause)));
+    }
+  };
+
+  const removeAttachment = (documentId: string) => {
+    setAttachedDocs((current) => current.filter((doc) => doc.document_id !== documentId));
+    void deleteDocument(documentId).catch(() => {
+      // Best-effort cleanup; vectors are removed when the session ends.
+    });
+  };
+
+  const clearAttachments = () => {
+    for (const doc of attachedDocs) {
+      void deleteDocument(doc.document_id).catch(() => undefined);
+    }
+    setAttachedDocs([]);
+    setPendingUploads([]);
+    setScopeMode("document");
+  };
+
+  const hasAttachments = attachedDocs.length > 0 || pendingUploads.length > 0;
+  const attachmentCount = attachedDocs.length + pendingUploads.length;
+
   const status = (() => {
     if (error) return <span className="text-rose-600">{error}</span>;
     if (recording) return "Recording - speak your question, then stop.";
     if (busy) return <ThinkingWave />;
+    if (hasAttachments) {
+      return (
+        <div className="flex flex-wrap items-center gap-2">
+          <ScopeSettings scopeMode={scopeMode} onScopeChange={setScopeMode} />
+          {attachedDocs.map((doc) => (
+            <AttachmentChip
+              key={doc.document_id}
+              filename={doc.title}
+              onRemove={() => removeAttachment(doc.document_id)}
+            />
+          ))}
+          {pendingUploads.map((pending) => (
+            <AttachmentChip key={pending.id} filename={pending.filename} loading />
+          ))}
+          {attachmentCount > 1 && (
+            <button
+              type="button"
+              onClick={clearAttachments}
+              className="text-xs font-mono text-muted-foreground hover:text-foreground"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      );
+    }
     return "Record a question or type one and press Enter.";
   })();
 
@@ -277,13 +486,34 @@ export function HeroSection() {
           >
             <div className="relative flex items-center h-16 rounded-full border border-foreground/15 bg-background/80 backdrop-blur-md shadow-sm focus-within:border-foreground/30 focus-within:shadow-md transition-all">
               <input
+                ref={fileInputRef}
+                type="file"
+                accept={UPLOAD_ACCEPT}
+                multiple
+                className="hidden"
+                onChange={onFileSelected}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={busy || uploading}
+                aria-label="Attach document"
+                className="ml-2 flex items-center justify-center w-10 h-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-40"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <span
+                className="h-6 w-px shrink-0 bg-foreground/15"
+                aria-hidden
+              />
+              <input
                 type="text"
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && askText()}
-                disabled={busy && !recording}
+                disabled={(busy && !recording) || uploading}
                 placeholder="Type it here or say it out loud..."
-                className="flex-1 h-full bg-transparent px-6 pr-16 text-base outline-none placeholder:text-muted-foreground disabled:opacity-50"
+                className="flex-1 h-full bg-transparent px-3 pr-16 text-base outline-none placeholder:text-muted-foreground disabled:opacity-50"
               />
 
               <button
@@ -301,7 +531,7 @@ export function HeroSection() {
               </button>
             </div>
 
-            <p className="mt-2 ml-6 text-xs text-muted-foreground">{status}</p>
+            <div className="mt-2 ml-6 min-h-5 text-xs text-muted-foreground">{status}</div>
           </div>
         </div>
       </div>
@@ -342,6 +572,8 @@ export function HeroSection() {
       streaming={busy && !recording}
       response={response}
       error={error}
+      attachedCount={attachedDocs.length}
+      scopeMode={attachedDocs.length ? scopeMode : null}
     />
     </>
   );
