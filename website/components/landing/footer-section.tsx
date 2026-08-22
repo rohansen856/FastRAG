@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { AnimatedWave } from "./animated-wave";
 
@@ -16,27 +17,25 @@ const footerLinks: Record<
     { name: "Providers", href: "#integrations" },
   ],
   Pipeline: [
-    { name: "Guardrails", href: "#security" },
-    { name: "Benchmarks", href: "#studio" },
-    { name: "Latency", href: "#studio" },
-    { name: "The team", href: "#developers" },
+    { name: "Guardrails", href: "/docs/guardrails" },
+    { name: "Benchmarks", href: "/docs/benchmarking" },
+    { name: "Latency", href: "/docs/latency" },
+    { name: "The team", href: "/developers" },
   ],
   Source: [
     { name: "Repository", href: GITHUB_URL, external: true },
+    { name: "Docs", href: "/docs" },
     {
-      name: "Local setup",
-      href: `${GITHUB_URL}/blob/master/docs/local-setup.md`,
-      external: true,
+      name: "Running locally",
+      href: "/docs/running-locally",
     },
     {
       name: "Providers",
-      href: `${GITHUB_URL}/blob/master/docs/providers.md`,
-      external: true,
+      href: "/docs/providers",
     },
     {
-      name: "Latency",
-      href: `${GITHUB_URL}/blob/master/docs/latency.md`,
-      external: true,
+      name: "Architecture",
+      href: "/docs/architecture",
     },
   ],
   Team: [
@@ -64,11 +63,11 @@ export function FooterSection() {
         <div className="py-16 lg:py-24">
           <div className="grid grid-cols-2 md:grid-cols-6 gap-12 lg:gap-8">
             <div className="col-span-2">
-              <a href="#" className="inline-flex items-center gap-2 mb-6">
+              <Link href="/" className="inline-flex items-center gap-2 mb-6">
                 <img src="/logo.svg" alt="" width={28} height={28} className="h-7 w-7" />
                 <span className="text-2xl font-display">FastRAG</span>
                 <span className="text-xs text-muted-foreground font-mono">OSS</span>
-              </a>
+              </Link>
 
               <p className="text-muted-foreground leading-relaxed mb-8 max-w-xs">
                 Voice-enabled, multilingual RAG. Answers only from retrieved sources - or it

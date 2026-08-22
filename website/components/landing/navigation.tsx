@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 
 const navLinks = [
-  { name: "Features", href: "#features" },
-  { name: "How it works", href: "#how-it-works" },
-  { name: "Developers", href: "#developers" },
-  { name: "Hosting", href: "#hosting" },
+  { name: "Features", href: "/#features" },
+  { name: "How it works", href: "/#how-it-works" },
+  { name: "Developers", href: "/developers" },
+  { name: "Docs", href: "/docs" },
+  { name: "Hosting", href: "/#hosting" },
 ];
 
 const GITHUB_URL = "https://github.com/rohansen856/FastRAG";
@@ -59,8 +61,7 @@ export function Navigation() {
             isScrolled ? "h-14" : "h-20"
           }`}
         >
-          {/* Logo */}
-          <a href="#" className="flex items-center gap-2 group">
+          <Link href="/" className="flex items-center gap-2 group">
             <img
               src="/logo.svg"
               alt=""
@@ -70,23 +71,21 @@ export function Navigation() {
             />
             <span className={`font-display tracking-tight transition-all duration-500 ${isScrolled ? "text-xl" : "text-2xl"}`}>FastRAG</span>
             <span className={`text-muted-foreground font-mono transition-all duration-500 ${isScrolled ? "text-[10px] mt-0.5" : "text-xs mt-1"}`}>OSS</span>
-          </a>
+          </Link>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-12">
             {navLinks.map((link) => (
-              <a
+              <Link
                 key={link.name}
                 href={link.href}
                 className="text-sm text-foreground/70 hover:text-foreground transition-colors duration-300 relative group"
               >
                 {link.name}
                 <span className="absolute -bottom-1 left-0 w-0 h-px bg-foreground transition-all duration-300 group-hover:w-full" />
-              </a>
+              </Link>
             ))}
           </div>
 
-          {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-4">
             <Button
               size="sm"
@@ -98,7 +97,6 @@ export function Navigation() {
             </Button>
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen((open) => !open)}
@@ -117,7 +115,6 @@ export function Navigation() {
 
       </nav>
       
-      {/* Mobile Menu - Full Screen Overlay */}
       <div
         id="mobile-nav"
         className={`md:hidden fixed inset-0 z-40 bg-background transition-all duration-500 ${
@@ -136,10 +133,9 @@ export function Navigation() {
           >
             <X className="w-6 h-6" />
           </button>
-          {/* Navigation Links */}
           <div className="flex-1 flex flex-col justify-center gap-8">
             {navLinks.map((link, i) => (
-              <a
+              <Link
                 key={link.name}
                 href={link.href}
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -151,11 +147,10 @@ export function Navigation() {
                 style={{ transitionDelay: isMobileMenuOpen ? `${i * 75}ms` : "0ms" }}
               >
                 {link.name}
-              </a>
+              </Link>
             ))}
           </div>
           
-          {/* Bottom CTAs */}
           <div className={`flex gap-4 pt-8 border-t border-foreground/10 transition-all duration-500 ${
             isMobileMenuOpen 
               ? "opacity-100 translate-y-0" 
