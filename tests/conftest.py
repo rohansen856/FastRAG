@@ -38,10 +38,26 @@ class FakeRetriever:
         collection: str | None = None,
         strategy: str | None = None,
         language: str | None = None,
+        document_ids: list[str] | None = None,
         deadline: object = None,
     ) -> list[Chunk]:
-        self.calls.append({"query": query, "strategy": strategy, "language": language})
-        return self.chunks[:limit]
+        self.calls.append(
+            {
+                "query": query,
+                "strategy": strategy,
+                "language": language,
+                "document_ids": document_ids,
+            }
+        )
+        if document_ids is not None:
+            allowed = set(document_ids)
+            filtered = [chunk for chunk in self.chunks if chunk.document_id in allowed]
+            return filtered[:limit]
+        return [
+            chunk
+            for chunk in self.chunks
+            if not chunk.metadata.get("session_upload")
+        ][:limit]
 
 
 class FakeReranker:
