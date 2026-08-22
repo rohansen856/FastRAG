@@ -25,6 +25,7 @@ class Retriever(Protocol):
         collection: str | None = None,
         strategy: str | None = None,
         language: str | None = None,
+        document_ids: list[str] | None = None,
         deadline: Deadline | None = None,
     ) -> list[Chunk]: ...
 

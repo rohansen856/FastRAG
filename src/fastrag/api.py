@@ -35,6 +35,7 @@ from .chunking import STRATEGY_NAMES
 from .config import Settings, get_settings
 from .domain import QueryRequest, QueryResponse, Transcript
 from .harness import Deadline, ProviderError
+from .ingest_document import DocumentIngestError, delete_user_document, ingest_upload
 from .observability import observation
 from .pipeline import PipelineUnavailable, QueryPipeline
 from .ports import Transcriber
@@ -150,6 +151,8 @@ def create_app(
                     trace_id=trace_id,
                     strategy=body.strategy,
                     language=body.language,
+                    document_id=body.document_id,
+                    document_ids=body.document_ids,
                 )
         except PipelineUnavailable as exc:
             raise HTTPException(
@@ -167,8 +170,53 @@ def create_app(
                 metadata=trace_metadata(body.query),
                 strategy=body.strategy,
                 language=body.language,
+                document_id=body.document_id,
+                document_ids=body.document_ids,
             )
         )
+
+    @app.post("/v1/documents/ingest", dependencies=[Depends(require_query_key)])
+    async def ingest_document(
+        file: Annotated[UploadFile, File()],
+        title: OptionalForm = None,
+        strategy: OptionalForm = None,
+    ) -> dict[str, object]:
+        payload = await file.read()
+        if not payload:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty upload")
+        try:
+            result = await ingest_upload(
+                configured,
+                filename=file.filename,
+                payload=payload,
+                title=title,
+                strategy=strategy or "sentence",
+            )
+        except DocumentIngestError as exc:
+            message = str(exc)
+            if "exceeds" in message and "bytes" in message:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=message
+                ) from exc
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=message
+            ) from exc
+        return {
+            "document_id": result.document_id,
+            "title": result.title,
+            "chunk_count": result.chunk_count,
+            "strategy": result.strategy,
+        }
+
+    @app.delete("/v1/documents/{document_id}", dependencies=[Depends(require_query_key)])
+    async def remove_document(document_id: str) -> dict[str, str]:
+        try:
+            await delete_user_document(configured, document_id)
+        except DocumentIngestError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            ) from exc
+        return {"document_id": document_id, "status": "removed"}
 
     @app.post("/v1/transcribe", dependencies=[Depends(require_query_key)])
     async def transcribe(
@@ -200,7 +248,10 @@ def create_app(
         file: AudioUpload,
         language: OptionalForm = None,
         strategy: OptionalForm = None,
+        document_id: OptionalForm = None,
+        document_ids: OptionalForm = None,
     ) -> QueryResponse:
+        scoped = _parse_document_ids(document_id, document_ids)
         audio = await read_audio(file)
         trace_id = uuid.uuid4().hex
         try:
@@ -218,6 +269,8 @@ def create_app(
                     trace_id=trace_id,
                     strategy=strategy,
                     language=language,
+                    document_id=scoped[0] if len(scoped) == 1 else None,
+                    document_ids=scoped if len(scoped) != 1 else None,
                     transcript=transcript,
                 )
         except ProviderError as exc:
@@ -237,7 +290,10 @@ def create_app(
         file: AudioUpload,
         language: OptionalForm = None,
         strategy: OptionalForm = None,
+        document_id: OptionalForm = None,
+        document_ids: OptionalForm = None,
     ) -> EventSourceResponse:
+        scoped = _parse_document_ids(document_id, document_ids)
         audio = await read_audio(file)
         speech = current_transcriber(request)
         pipeline_ref = current_pipeline(request)
@@ -264,6 +320,8 @@ def create_app(
                 metadata=trace_metadata(transcript.text),
                 strategy=strategy,
                 language=language,
+                document_id=scoped[0] if len(scoped) == 1 else None,
+                document_ids=scoped if len(scoped) != 1 else None,
                 transcript=transcript,
             ):
                 yield event
@@ -338,6 +396,8 @@ async def _stream_events(
     metadata: dict[str, str],
     strategy: str | None = None,
     language: str | None = None,
+    document_id: str | None = None,
+    document_ids: list[str] | None = None,
     transcript: Transcript | None = None,
 ) -> AsyncIterator[dict[str, str]]:
     trace_id = uuid.uuid4().hex
@@ -348,6 +408,8 @@ async def _stream_events(
                 trace_id=trace_id,
                 strategy=strategy,
                 language=language,
+                document_id=document_id,
+                document_ids=document_ids,
                 transcript=transcript,
             ):
                 if event["event"] == "final":
@@ -358,6 +420,16 @@ async def _stream_events(
             "event": "error",
             "data": json.dumps({"stage": exc.stage, "message": str(exc)}),
         }
+
+
+def _parse_document_ids(document_id: str | None, document_ids: str | None) -> list[str]:
+    from .documents import resolve_document_scope
+
+    extra: list[str] | None = None
+    if document_ids:
+        extra = [item.strip() for item in document_ids.split(",") if item.strip()]
+    resolved = resolve_document_scope(document_id=document_id, document_ids=extra)
+    return resolved or []
 
 
 def _check_bearer(authorization: str | None, expected: str) -> None:

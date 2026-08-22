@@ -65,6 +65,7 @@ class QdrantHybridRetriever:
         collection: str | None = None,
         strategy: str | None = None,
         language: str | None = None,
+        document_ids: list[str] | None = None,
         deadline: object = None,
     ) -> list[Chunk]:
         selected_collection = collection or (
@@ -73,7 +74,14 @@ class QdrantHybridRetriever:
             else self._collection
         )
         return await asyncio.to_thread(
-            self._retrieve_sync, selected_collection, query, vector, limit, strategy, language
+            self._retrieve_sync,
+            selected_collection,
+            query,
+            vector,
+            limit,
+            strategy,
+            language,
+            document_ids,
         )
 
     def _retrieve_sync(
@@ -84,6 +92,7 @@ class QdrantHybridRetriever:
         limit: int,
         strategy: str | None,
         language: str | None,
+        document_ids: list[str] | None,
     ) -> list[Chunk]:
         from qdrant_client import models
 
@@ -97,7 +106,27 @@ class QdrantHybridRetriever:
             conditions.append(
                 models.FieldCondition(key="language", match=models.MatchValue(value=language))
             )
-        query_filter = models.Filter(must=conditions) if conditions else None
+        if document_ids:
+            conditions.append(
+                models.FieldCondition(
+                    key="document_id",
+                    match=models.MatchAny(any=document_ids),
+                )
+            )
+        must_not: list[Any] = []
+        if not document_ids:
+            # Session uploads share the active collection but must not pollute corpus search.
+            must_not.append(
+                models.FieldCondition(
+                    key="session_upload",
+                    match=models.MatchValue(value=True),
+                )
+            )
+        query_filter = (
+            models.Filter(must=conditions, must_not=must_not)
+            if conditions or must_not
+            else None
+        )
 
         if self._sparse is None:
             response = self._client.query_points(

@@ -40,6 +40,8 @@ class QueryRequest(BaseModel):
     query: str = Field(min_length=1, max_length=4_000)
     language: str | None = None
     strategy: str | None = None
+    document_id: str | None = None
+    document_ids: list[str] | None = None
 
 
 class Citation(BaseModel):

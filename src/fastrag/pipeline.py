@@ -11,6 +11,7 @@ from .calibration import Calibration
 from .chunking import context_of
 from .citations import CitationValidationError, SentenceCitationBuffer
 from .crag import CorrectiveRetrieval
+from .documents import resolve_document_scope
 from .domain import (
     ActiveIndex,
     CacheStatus,
@@ -107,6 +108,8 @@ class QueryPipeline:
         trace_id: str | None = None,
         strategy: str | None = None,
         language: str | None = None,
+        document_id: str | None = None,
+        document_ids: list[str] | None = None,
         transcript: Transcript | None = None,
     ) -> QueryResponse:
         final: QueryResponse | None = None
@@ -115,6 +118,8 @@ class QueryPipeline:
             trace_id=trace_id,
             strategy=strategy,
             language=language,
+            document_id=document_id,
+            document_ids=document_ids,
             transcript=transcript,
         ):
             if event["event"] == "final":
@@ -130,6 +135,8 @@ class QueryPipeline:
         trace_id: str | None = None,
         strategy: str | None = None,
         language: str | None = None,
+        document_id: str | None = None,
+        document_ids: list[str] | None = None,
         transcript: Transcript | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         state = _RequestState(
@@ -142,6 +149,10 @@ class QueryPipeline:
             state.timings["stt"] = transcript.duration_ms / 1000
         deadline = Deadline(self._config.deadline_seconds)
         active_strategy = strategy or self._config.chunk_strategy
+        scoped_documents = resolve_document_scope(
+            document_id=document_id, document_ids=document_ids
+        )
+        document_scope = ",".join(scoped_documents) if scoped_documents else None
 
         yield {
             "event": "meta",
@@ -173,6 +184,7 @@ class QueryPipeline:
             generator_model=self._config.generator_model,
             max_answer_tokens=self._config.max_answer_tokens,
             chunk_strategy=active_strategy,
+            document_scope=document_scope,
         )
 
         cached = await self._cache_read("exact_cache", self._cache.get_exact(namespace, query))
@@ -185,11 +197,12 @@ class QueryPipeline:
             "embedding", self._embedder.embed_query(query, deadline=deadline), state.timings
         )
 
-        vector_decision = self._guardrails.check_vector(vector)
-        if not vector_decision.allowed:
-            async for event in self._refuse(state, vector_decision):
-                yield event
-            return
+        if scoped_documents is None:
+            vector_decision = self._guardrails.check_vector(vector)
+            if not vector_decision.allowed:
+                async for event in self._refuse(state, vector_decision):
+                    yield event
+                return
 
         cached = await self._cache_read(
             "semantic_cache", self._cache.get_semantic(namespace, vector)
@@ -209,6 +222,7 @@ class QueryPipeline:
                 collection=collection,
                 strategy=active_strategy,
                 language=language,
+                document_ids=scoped_documents,
                 deadline=deadline,
             ),
             state.timings,
@@ -233,8 +247,11 @@ class QueryPipeline:
             collection=collection,
             strategy=active_strategy,
             language=language,
+            document_ids=scoped_documents,
             deadline=deadline,
         )
+        if scoped_documents and ranked:
+            abstain = False
         if abstain:
             async for event in self._no_answer(
                 state, namespace, query, vector, active_index.content_version
@@ -318,10 +335,13 @@ class QueryPipeline:
         collection: str | None,
         strategy: str | None,
         language: str | None,
+        document_ids: list[str] | None,
         deadline: Deadline,
     ) -> tuple[list[RankedChunk], bool]:
         if self._crag is None:
             below = not ranked or ranked[0].score < self._calibration.reranker_threshold
+            if document_ids and ranked:
+                below = False
             return ranked, below
         outcome = await self._crag.run(
             query,
@@ -329,6 +349,7 @@ class QueryPipeline:
             collection=collection,
             strategy=strategy,
             language=language,
+            document_ids=document_ids,
             deadline=deadline,
             timings=state.timings,
         )
