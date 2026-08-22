@@ -91,6 +91,7 @@ class CorrectiveRetrieval:
         collection: str | None = None,
         strategy: str | None = None,
         language: str | None = None,
+        document_ids: list[str] | None = None,
         deadline: Deadline | None = None,
         timings: dict[str, float] | None = None,
     ) -> CragOutcome:
@@ -126,6 +127,7 @@ class CorrectiveRetrieval:
                 collection=collection,
                 strategy=strategy,
                 language=language,
+                document_ids=document_ids,
                 deadline=deadline,
             )
 
@@ -215,6 +217,7 @@ class CorrectiveRetrieval:
         collection: str | None,
         strategy: str | None,
         language: str | None,
+        document_ids: list[str] | None,
         deadline: Deadline | None,
     ) -> CragOutcome:
         top_score = ranked[0].score if ranked else None
@@ -223,7 +226,7 @@ class CorrectiveRetrieval:
                 action=CragAction.INCORRECT,
                 ranked=ranked,
                 trace=CragTrace(action=CragAction.INCORRECT, top_score=top_score),
-                should_abstain=True,
+                should_abstain=not document_ids,
             )
         try:
             rewritten = await self._rewrite(query, deadline=deadline)
@@ -251,13 +254,16 @@ class CorrectiveRetrieval:
             collection=collection,
             strategy=strategy,
             language=language,
+            document_ids=document_ids,
             deadline=deadline,
         )
         retried = await self._reranker.rerank(
             rewritten, candidates, self._candidate_k, deadline=deadline
         )
         CRAG_ACTIONS.labels(action="rewrite").inc()
-        passed = bool(retried) and retried[0].score >= self._calibration.reranker_threshold
+        passed = bool(retried) and (
+            bool(document_ids) or retried[0].score >= self._calibration.reranker_threshold
+        )
         return CragOutcome(
             action=CragAction.INCORRECT,
             ranked=retried if passed else ranked,

@@ -33,6 +33,7 @@ def cache_namespace(
     locale: str = "en",
     chunk_strategy: str = "sentence",
     retrieval_profile: str = "default",
+    document_scope: str | None = None,
 ) -> str:
     components = {
         "content": content_version,
@@ -43,6 +44,7 @@ def cache_namespace(
         "locale": locale,
         "chunking": chunk_strategy,
         "retrieval": retrieval_profile,
+        "document": document_scope or "",
     }
     raw = json.dumps(components, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode()).hexdigest()[:24]
