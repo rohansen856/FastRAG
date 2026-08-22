@@ -11,6 +11,7 @@ from ..chunking import context_of
 from ..domain import Chunk
 from ..harness import (
     Deadline,
+    DeadlineExceeded,
     ProviderError,
     ProviderHarness,
     classify,
@@ -90,7 +91,7 @@ class OpenAICompatibleGenerator:
                 deadline.check(self.provider_name, "generation")
             emitted = False
             try:
-                async for token in self._stream_once(payload):
+                async for token in self._stream_once(payload, deadline=deadline):
                     emitted = True
                     yield token
             except Exception as exc:  # noqa: BLE001 - normalised by classify()
@@ -111,7 +112,9 @@ class OpenAICompatibleGenerator:
                 breaker.record_success()
                 return
 
-    async def _stream_once(self, payload: dict[str, Any]) -> AsyncIterator[str]:
+    async def _stream_once(
+        self, payload: dict[str, Any], *, deadline: Deadline | None = None
+    ) -> AsyncIterator[str]:
         async with self._client.stream("POST", self._url, json=payload) as response:
             if response.status_code >= 400:
                 body = (await response.aread())[:1_000].decode(errors="replace")
@@ -121,6 +124,10 @@ class OpenAICompatibleGenerator:
                     response=response,
                 )
             async for line in response.aiter_lines():
+                if deadline is not None and deadline.expired:
+                    raise DeadlineExceeded(
+                        self.provider_name, "request deadline exceeded during generation"
+                    )
                 if not line.startswith("data: "):
                     continue
                 data = line[6:]

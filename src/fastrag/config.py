@@ -163,6 +163,19 @@ class Settings(BaseSettings):
         return "sarvam" if self.sarvam_api_key else "none"
 
     @property
+    def effective_request_deadline_seconds(self) -> float:
+        """Cloud hops (Jina, Groq, Qdrant) need more wall-clock than the local rig."""
+        if self.profile == "cloud":
+            return max(self.request_deadline_seconds, 60.0)
+        return self.request_deadline_seconds
+
+    @property
+    def effective_llm_timeout_seconds(self) -> float:
+        if self.profile == "cloud":
+            return max(self.llm_timeout_seconds, 45.0)
+        return self.llm_timeout_seconds
+
+    @property
     def uses_hosted_embedding(self) -> bool:
         return self.active_embedding_provider != "fastembed"
 

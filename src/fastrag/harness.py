@@ -131,7 +131,10 @@ def classify(provider: str, exc: BaseException) -> ProviderError:
             retryable=status in RETRYABLE_STATUS,
         )
     if isinstance(exc, httpx.TimeoutException | httpx.TransportError):
-        return ProviderError(provider, f"{provider} transport error: {exc}", retryable=True)
+        detail = str(exc).strip() or exc.__class__.__name__
+        return ProviderError(
+            provider, f"{provider} transport error: {detail}", retryable=True
+        )
     return ProviderError(provider, f"{provider} call failed: {exc}")
 
 

@@ -20,7 +20,7 @@ const footerLinks: Record<
     { name: "Guardrails", href: "/docs/guardrails" },
     { name: "Benchmarks", href: "/docs/benchmarking" },
     { name: "Latency", href: "/docs/latency" },
-    { name: "The team", href: "/developers" },
+    { name: "The team", href: "#developers" },
   ],
   Source: [
     { name: "Repository", href: GITHUB_URL, external: true },

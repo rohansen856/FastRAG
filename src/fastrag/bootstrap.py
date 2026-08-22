@@ -122,7 +122,7 @@ def build_generator(settings: Settings) -> Any:
         model=settings.llm_model,
         system_prompt=settings.prompt_path.read_text(),
         max_tokens=settings.max_answer_tokens,
-        timeout_seconds=settings.llm_timeout_seconds,
+        timeout_seconds=settings.effective_llm_timeout_seconds,
         harness=harness_from_settings("generator", settings),
         provider_name="generator",
     )
@@ -138,7 +138,7 @@ def build_generator(settings: Settings) -> Any:
         model=settings.llm_fallback_model,
         system_prompt=settings.prompt_path.read_text(),
         max_tokens=settings.max_answer_tokens,
-        timeout_seconds=settings.llm_timeout_seconds,
+        timeout_seconds=settings.effective_llm_timeout_seconds,
         harness=harness_from_settings("generator-fallback", settings),
         provider_name="generator-fallback",
     )
@@ -271,7 +271,7 @@ async def build_pipeline(settings: Settings) -> tuple[QueryPipeline, RedisAnswer
             max_context_tokens=settings.max_context_tokens,
             content_version=settings.content_version,
             chunk_strategy=strategies[0] if strategies else "sentence",
-            deadline_seconds=settings.request_deadline_seconds,
+            deadline_seconds=settings.effective_request_deadline_seconds,
         ),
     )
     return pipeline, cache
