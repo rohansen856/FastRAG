@@ -53,6 +53,20 @@ export interface Transcript {
   duration_ms: number;
 }
 
+export interface IngestResult {
+  document_id: string;
+  title: string;
+  chunk_count: number;
+  strategy: string;
+}
+
+export interface QueryOptions {
+  strategy?: string;
+  language?: string;
+  documentId?: string;
+  documentIds?: string[];
+}
+
 export interface QueryResponse {
   query_id: string;
   trace_id: string;

@@ -1,4 +1,5 @@
-import type { QueryResponse, Transcript } from "./types";
+import type { IngestResult, QueryOptions, QueryResponse, Transcript } from "./types";
+import { validateUploadFile } from "./upload";
 
 export interface StreamHandlers {
   onTranscript?: (transcript: Transcript) => void;
@@ -84,15 +85,56 @@ function dispatch(frame: string, handlers: StreamHandlers): void {
   }
 }
 
+export async function ingestDocument(file: File, title?: string): Promise<IngestResult> {
+  const rejection = validateUploadFile(file);
+  if (rejection) throw new Error(rejection);
+  const form = new FormData();
+  form.append("file", file, file.name);
+  if (title) form.append("title", title);
+  const response = await fetch("/api/rag/v1/documents/ingest", { method: "POST", body: form });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => response.statusText);
+    throw new Error(detail || `upload failed with ${response.status}`);
+  }
+  return (await response.json()) as IngestResult;
+}
+
+export async function deleteDocument(documentId: string): Promise<void> {
+  const response = await fetch(`/api/rag/v1/documents/${encodeURIComponent(documentId)}`, {
+    method: "DELETE",
+    keepalive: true,
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => response.statusText);
+    throw new Error(detail || `delete failed with ${response.status}`);
+  }
+}
+
+function queryPayload(query: string, options: QueryOptions) {
+  const documentIds =
+    options.documentIds?.length
+      ? options.documentIds
+      : options.documentId
+        ? [options.documentId]
+        : null;
+  return JSON.stringify({
+    query,
+    strategy: options.strategy ?? null,
+    language: options.language ?? null,
+    document_id: documentIds?.length === 1 ? documentIds[0] : null,
+    document_ids: documentIds && documentIds.length > 1 ? documentIds : null,
+  });
+}
+
 export async function textQuery(
   query: string,
-  options: { strategy?: string; language?: string },
+  options: QueryOptions,
   handlers: StreamHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
   await streamEvents(
     "v1/query/stream",
-    JSON.stringify({ query, strategy: options.strategy ?? null, language: options.language ?? null }),
+    queryPayload(query, options),
     { "content-type": "application/json" },
     handlers,
     signal,
@@ -101,7 +143,7 @@ export async function textQuery(
 
 export async function voiceQuery(
   audio: Blob,
-  options: { strategy?: string; language?: string },
+  options: QueryOptions,
   handlers: StreamHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
@@ -109,6 +151,14 @@ export async function voiceQuery(
   form.append("file", audio, "question.wav");
   if (options.strategy) form.append("strategy", options.strategy);
   if (options.language) form.append("language", options.language);
+  const documentIds =
+    options.documentIds?.length
+      ? options.documentIds
+      : options.documentId
+        ? [options.documentId]
+        : null;
+  if (documentIds?.length === 1) form.append("document_id", documentIds[0]);
+  else if (documentIds && documentIds.length > 1) form.append("document_ids", documentIds.join(","));
   // Let the browser set the multipart boundary.
   await streamEvents("v1/voice/query/stream", form, {}, handlers, signal);
 }

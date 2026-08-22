@@ -16,6 +16,9 @@ const API_TOKEN = process.env.FASTRAG_QUERY_TOKEN ?? "";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+/** Match `src/fastrag/documents.py` MAX_UPLOAD_BYTES */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
 const ALLOWED_PREFIXES = [
   "v1/query",
   "v1/query/stream",
@@ -24,11 +27,18 @@ const ALLOWED_PREFIXES = [
   "v1/voice/query/stream",
   "v1/strategies",
   "v1/bench",
+  "v1/documents/ingest",
 ];
+
+const USER_DOCUMENT_PATH = /^v1\/documents\/user-[a-f0-9]+$/;
+
+function isAllowedPath(target: string): boolean {
+  return ALLOWED_PREFIXES.includes(target) || USER_DOCUMENT_PATH.test(target);
+}
 
 async function proxy(request: NextRequest, path: string[]): Promise<Response> {
   const target = path.join("/");
-  if (!ALLOWED_PREFIXES.includes(target)) {
+  if (!isAllowedPath(target)) {
     return Response.json({ detail: `unsupported path: ${target}` }, { status: 404 });
   }
   if (!API_TOKEN) {
@@ -36,6 +46,23 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
       { detail: "FASTRAG_QUERY_TOKEN is not configured on the server" },
       { status: 500 },
     );
+  }
+
+  if (target === "v1/documents/ingest") {
+    const contentType = request.headers.get("content-type") ?? "";
+    if (!contentType.toLowerCase().includes("multipart/form-data")) {
+      return Response.json({ detail: "document ingest requires multipart/form-data" }, { status: 415 });
+    }
+    const contentLength = request.headers.get("content-length");
+    if (contentLength) {
+      const bytes = Number.parseInt(contentLength, 10);
+      if (Number.isFinite(bytes) && bytes > MAX_UPLOAD_BYTES) {
+        return Response.json(
+          { detail: `document exceeds ${MAX_UPLOAD_BYTES} bytes` },
+          { status: 413 },
+        );
+      }
+    }
   }
 
   const headers = new Headers();
@@ -83,5 +110,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
+  return proxy(request, (await context.params).path);
+}
+
+export async function DELETE(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   return proxy(request, (await context.params).path);
 }
