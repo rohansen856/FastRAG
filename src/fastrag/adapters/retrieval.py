@@ -116,6 +116,7 @@ class QdrantHybridRetriever:
         must_not: list[Any] = []
         if not document_ids:
             # Session uploads share the active collection but must not pollute corpus search.
+            self._ensure_session_upload_index(collection)
             must_not.append(
                 models.FieldCondition(
                     key="session_upload",
@@ -163,6 +164,19 @@ class QdrantHybridRetriever:
             with_payload=True,
         )
         return [self._to_chunk(point) for point in response.points]
+
+    def _ensure_session_upload_index(self, collection: str) -> None:
+        from qdrant_client import models
+
+        try:
+            self._client.create_payload_index(
+                collection_name=collection,
+                field_name="session_upload",
+                field_schema=models.PayloadSchemaType.BOOL,
+            )
+        except Exception:
+            # Index may already exist; Qdrant also rejects duplicate create on some versions.
+            pass
 
     @staticmethod
     def _to_chunk(point: Any) -> Chunk:

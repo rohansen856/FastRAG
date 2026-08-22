@@ -152,6 +152,10 @@ function friendlyError(raw: string): string {
   if (lower.includes("no text") || lower.includes("transcription returned")) {
     return "Didn't catch that. Try speaking again a bit closer to the mic.";
   }
+  if (/^(retrieval|generation|embedding|rerank|stt|pipeline):/i.test(detail)) {
+    const short = detail.split("\n")[0];
+    return short.length <= 200 ? short : `${short.slice(0, 197)}…`;
+  }
   if (detail && detail.length < 160 && !detail.trimStart().startsWith("{")) {
     return detail;
   }

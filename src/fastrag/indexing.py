@@ -182,6 +182,11 @@ class IndexBuilder:
                 field_name=field,
                 field_schema=models.PayloadSchemaType.KEYWORD,
             )
+        self._client.create_payload_index(
+            collection_name=collection,
+            field_name="session_upload",
+            field_schema=models.PayloadSchemaType.BOOL,
+        )
 
     async def _upload(self, collection: str, chunks: Sequence[dict[str, Any]]) -> list[list[float]]:
         from qdrant_client import models
