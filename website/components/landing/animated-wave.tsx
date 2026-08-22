@@ -31,7 +31,8 @@ export function AnimatedWave() {
       const rect = canvas.getBoundingClientRect();
       ctx.clearRect(0, 0, rect.width, rect.height);
 
-      ctx.font = "14px monospace";
+      const family = getComputedStyle(document.body).fontFamily || "Outfit, sans-serif";
+      ctx.font = `14px ${family}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 

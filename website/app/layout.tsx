@@ -1,47 +1,13 @@
 import React from "react"
 import type { Metadata } from 'next'
-import { Instrument_Sans, Instrument_Serif, JetBrains_Mono, Noto_Sans, Noto_Sans_Arabic } from 'next/font/google'
+import { Outfit } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const instrumentSans = Instrument_Sans({ 
+const outfit = Outfit({
   subsets: ["latin"],
-  variable: '--font-instrument'
-});
-
-const instrumentSerif = Instrument_Serif({ 
-  subsets: ["latin"],
-  weight: "400",
-  variable: '--font-instrument-serif'
-});
-
-const jetbrainsMono = JetBrains_Mono({ 
-  subsets: ["latin"],
-  variable: '--font-jetbrains'
-});
-
-/** Shapes Devanagari, Malayalam, Tamil, etc. - Instrument fonts are latin-only. */
-const notoSans = Noto_Sans({
-  subsets: [
-    "latin",
-    "devanagari",
-    "bengali",
-    "gujarati",
-    "gurmukhi",
-    "kannada",
-    "malayalam",
-    "oriya",
-    "tamil",
-    "telugu",
-  ],
-  weight: ["400", "700"],
-  variable: "--font-noto",
-});
-
-const notoArabic = Noto_Sans_Arabic({
-  subsets: ["arabic"],
-  weight: ["400", "700"],
-  variable: "--font-noto-arabic",
+  variable: "--font-outfit",
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
 export const metadata: Metadata = {
@@ -66,7 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${instrumentSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} ${notoSans.variable} ${notoArabic.variable} font-sans antialiased`}>
+      <body className={`${outfit.variable} font-sans antialiased`}>
         {children}
         <Analytics />
       </body>

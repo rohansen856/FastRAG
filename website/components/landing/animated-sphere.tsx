@@ -31,6 +31,7 @@ export function AnimatedSphere({ active = false, sample }: Props) {
 
     const chars = "░▒▓█▀▄▌▐│─┤├┴┬╭╮╰╯";
     let time = 0;
+    let canvasFont = "12px sans-serif";
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -38,6 +39,8 @@ export function AnimatedSphere({ active = false, sample }: Props) {
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const family = getComputedStyle(document.body).fontFamily || "Outfit, sans-serif";
+      canvasFont = `12px ${family}`;
     };
 
     resize();
@@ -63,12 +66,11 @@ export function AnimatedSphere({ active = false, sample }: Props) {
       const centerY = rect.height / 2;
       const half = Math.min(rect.width, rect.height) / 2;
       const energy = energyFromLevels();
-      // Fill the canvas; keep pulse mild so peaks stay on-bitmap.
       const baseRadius = half * 0.82 * (1 + energy * 0.12);
 
       const levels = activeRef.current ? (sampleRef.current?.() ?? null) : null;
 
-      ctx.font = "12px monospace";
+      ctx.font = canvasFont;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
@@ -94,7 +96,6 @@ export function AnimatedSphere({ active = false, sample }: Props) {
             wave = levels[sampleIndex % levels.length] / 128 - 1;
             sampleIndex += 1;
           }
-          // Radial only - unit length stays 1, so canvas bounds stay predictable.
           const r = baseRadius * (1 + wave * energy * 0.12);
 
           const depth = Math.min(1, Math.max(0, (finalZ + 1) / 2));

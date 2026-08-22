@@ -75,7 +75,8 @@ export function AnimatedTetrahedron() {
       const centerY = rect.height / 2;
       const scale = Math.min(rect.width, rect.height) * 0.7;
 
-      ctx.font = "18px monospace";
+      const family = getComputedStyle(document.body).fontFamily || "Outfit, sans-serif";
+      ctx.font = `18px ${family}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 

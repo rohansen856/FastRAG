@@ -153,14 +153,14 @@ function CollabVisual() {
       {/* User A */}
       <g>
         <rect x="30" y="50" width="50" height="60" rx="4" fill="none" stroke="currentColor" strokeWidth="2" />
-        <text x="55" y="85" textAnchor="middle" fontSize="20" fontFamily="monospace" fill="currentColor">A</text>
+        <text x="55" y="85" textAnchor="middle" fontSize="20" fontFamily="var(--font-outfit), Outfit, sans-serif" fill="currentColor">A</text>
         <circle cx="55" cy="35" r="12" fill="none" stroke="currentColor" strokeWidth="2" />
       </g>
       
       {/* User B */}
       <g>
         <rect x="120" y="50" width="50" height="60" rx="4" fill="none" stroke="currentColor" strokeWidth="2" />
-        <text x="145" y="85" textAnchor="middle" fontSize="20" fontFamily="monospace" fill="currentColor">B</text>
+        <text x="145" y="85" textAnchor="middle" fontSize="20" fontFamily="var(--font-outfit), Outfit, sans-serif" fill="currentColor">B</text>
         <circle cx="145" cy="35" r="12" fill="none" stroke="currentColor" strokeWidth="2" />
       </g>
       

@@ -40,10 +40,10 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-instrument), 'Instrument Sans', system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), 'JetBrains Mono', monospace;
-  --font-display: var(--font-instrument-serif), 'Instrument Serif', Georgia, serif;
-  --font-indic: var(--font-noto), var(--font-noto-arabic), var(--font-instrument), system-ui, sans-serif;
+  --font-sans: var(--font-outfit), 'Outfit', sans-serif;
+  --font-mono: var(--font-outfit), 'Outfit', sans-serif;
+  --font-display: var(--font-outfit), 'Outfit', sans-serif;
+  --font-indic: var(--font-outfit), 'Outfit', sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
