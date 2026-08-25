@@ -105,6 +105,68 @@ class Transcript(BaseModel):
     duration_ms: float = 0
 
 
+class StageStatus(StrEnum):
+    OK = "ok"
+    SKIPPED = "skipped"
+    BLOCKED = "blocked"
+
+
+class PipelineStageTrace(BaseModel):
+    id: str
+    label: str
+    status: StageStatus
+    duration_ms: float = 0
+    detail: str | None = None
+
+
+class ChunkTrace(BaseModel):
+    rank: int
+    chunk_id: str
+    document_id: str
+    title: str
+    score: float
+    excerpt: str
+    refined: bool = False
+
+
+class GenerationTrace(BaseModel):
+    provider: str | None = None
+    model: str | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+
+
+class QueryTrace(BaseModel):
+    query: str
+    strategy: str
+    language: str | None = None
+    document_ids: list[str] = Field(default_factory=list)
+    profile: str = "local"
+    collection_name: str | None = None
+    content_version: str | None = None
+    cache_namespace: str | None = None
+    cache_status: CacheStatus = CacheStatus.MISS
+    embedding_fingerprint: str | None = None
+    reranker_fingerprint: str | None = None
+    generator_model: str | None = None
+    generator_provider: str | None = None
+    stt_provider: str | None = None
+    stt_model: str | None = None
+    reranker_threshold: float | None = None
+    crag_confident_threshold: float | None = None
+    offtopic_threshold: float | None = None
+    stages: list[PipelineStageTrace] = Field(default_factory=list)
+    retrieved: list[ChunkTrace] = Field(default_factory=list)
+    reranked: list[ChunkTrace] = Field(default_factory=list)
+    contexts: list[ChunkTrace] = Field(default_factory=list)
+    cited_chunk_ids: list[str] = Field(default_factory=list)
+    candidate_k: int = 0
+    context_top_k: int = 0
+    abstention_reason: str | None = None
+    generation: GenerationTrace | None = None
+
+
 class QueryResponse(BaseModel):
     query_id: str
     trace_id: str
@@ -118,6 +180,7 @@ class QueryResponse(BaseModel):
     crag: CragTrace | None = None
     transcript: Transcript | None = None
     generator_provider: str | None = None
+    trace: QueryTrace | None = None
 
 
 @dataclass(slots=True, frozen=True)

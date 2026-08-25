@@ -272,6 +272,7 @@ async def build_pipeline(settings: Settings) -> tuple[QueryPipeline, RedisAnswer
             content_version=settings.content_version,
             chunk_strategy=strategies[0] if strategies else "sentence",
             deadline_seconds=settings.effective_request_deadline_seconds,
+            profile=settings.profile,
         ),
     )
     return pipeline, cache

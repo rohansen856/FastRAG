@@ -22,6 +22,7 @@ from .domain import (
     QueryResponse,
     QueryTimings,
     RankedChunk,
+    StageStatus,
     Transcript,
 )
 from .fingerprint import cache_namespace
@@ -30,6 +31,7 @@ from .harness import Deadline
 from .metrics import FAILURES, LATENCY, REQUESTS, STAGE_LATENCY, TTFT
 from .observability import observation, trace_raw_content
 from .ports import AnswerCache, AnswerGenerator, Embedder, Reranker, Retriever
+from .query_trace import QueryTraceBuilder
 
 NO_ANSWER_TEXT = "I don't know based on the available sources."
 
@@ -53,6 +55,7 @@ class PipelineConfig:
     content_version: str = "empty"
     chunk_strategy: str = "sentence"
     deadline_seconds: float = 25.0
+    profile: str = "local"
 
 
 @dataclass(slots=True)
@@ -66,6 +69,7 @@ class _RequestState:
     guardrail: GuardrailDecision | None = None
     crag: CragTrace | None = None
     transcript: Transcript | None = None
+    trace: QueryTraceBuilder | None = None
 
 
 class QueryPipeline:
@@ -145,13 +149,28 @@ class QueryPipeline:
             started=time.perf_counter(),
             transcript=transcript,
         )
+        state.trace = QueryTraceBuilder(
+            query=query,
+            strategy=strategy or self._config.chunk_strategy,
+            language=language,
+            document_ids=scoped_documents if (scoped_documents := resolve_document_scope(
+                document_id=document_id, document_ids=document_ids
+            )) else [],
+            profile=self._config.profile,
+            embedding_fingerprint=self._config.embedding_fingerprint,
+            reranker_fingerprint=self._config.reranker_fingerprint,
+            generator_model=self._config.generator_model,
+            candidate_k=self._config.candidate_k,
+            context_top_k=self._config.context_top_k,
+            reranker_threshold=self._calibration.reranker_threshold,
+            crag_confident_threshold=self._calibration.crag_confident_threshold,
+            offtopic_threshold=self._calibration.offtopic_threshold,
+        )
         if transcript is not None:
             state.timings["stt"] = transcript.duration_ms / 1000
+            state.trace.set_transcript(transcript)
         deadline = Deadline(self._config.deadline_seconds)
         active_strategy = strategy or self._config.chunk_strategy
-        scoped_documents = resolve_document_scope(
-            document_id=document_id, document_ids=document_ids
-        )
         document_scope = ",".join(scoped_documents) if scoped_documents else None
 
         yield {
@@ -162,6 +181,19 @@ class QueryPipeline:
         guard_started = time.perf_counter()
         decision = self._guardrails.check_text(query)
         state.timings["guardrail"] = time.perf_counter() - guard_started
+        if state.trace is not None:
+            if decision.allowed:
+                detail = None
+            elif decision.rule:
+                detail = decision.rule.value
+            else:
+                detail = "blocked"
+            state.trace.record_stage(
+                "guardrail",
+                status=StageStatus.OK if decision.allowed else StageStatus.BLOCKED,
+                duration_ms=state.timings["guardrail"] * 1000,
+                detail=detail,
+            )
         if not decision.allowed:
             async for event in self._refuse(state, decision):
                 yield event
@@ -177,6 +209,12 @@ class QueryPipeline:
             FAILURES.labels(stage="index_registry").inc()
             raise PipelineUnavailable("index_registry", str(exc)) from exc
 
+        if state.trace is not None:
+            state.trace.set_index(
+                collection_name=active_index.collection_name,
+                content_version=active_index.content_version,
+            )
+
         namespace = cache_namespace(
             content_version=active_index.content_version,
             embedding_fingerprint=self._config.embedding_fingerprint,
@@ -186,28 +224,72 @@ class QueryPipeline:
             chunk_strategy=active_strategy,
             document_scope=document_scope,
         )
+        if state.trace is not None:
+            state.trace.set_cache_namespace(namespace)
 
+        cache_started = time.perf_counter()
         cached = await self._cache_read("exact_cache", self._cache.get_exact(namespace, query))
+        if state.trace is not None:
+            state.trace.record_stage(
+                "exact_cache",
+                status=StageStatus.OK,
+                duration_ms=(time.perf_counter() - cache_started) * 1000,
+                detail="exact hit" if cached is not None else "miss",
+            )
         if cached is not None:
+            if state.trace is not None:
+                state.trace.mark_cache_hit(CacheStatus.EXACT)
             async for event in self._from_cache(state, cached, active_index.content_version):
                 yield event
             return
 
         vector = await self._required(
-            "embedding", self._embedder.embed_query(query, deadline=deadline), state.timings
+            "embedding", self._embedder.embed_query(query, deadline=deadline), state.timings, state
         )
 
         if scoped_documents is None:
+            vector_started = time.perf_counter()
             vector_decision = self._guardrails.check_vector(vector)
+            vector_elapsed = time.perf_counter() - vector_started
+            if state.trace is not None:
+                detail = None
+                if not vector_decision.allowed:
+                    detail = (
+                        vector_decision.rule.value if vector_decision.rule else "blocked"
+                    )
+                state.trace.record_stage(
+                    "vector_guardrail",
+                    status=StageStatus.OK
+                    if vector_decision.allowed
+                    else StageStatus.BLOCKED,
+                    duration_ms=vector_elapsed * 1000,
+                    detail=detail,
+                )
             if not vector_decision.allowed:
                 async for event in self._refuse(state, vector_decision):
                     yield event
                 return
+        elif state.trace is not None:
+            state.trace.record_stage(
+                "vector_guardrail",
+                status=StageStatus.SKIPPED,
+                detail="document scope",
+            )
 
+        semantic_started = time.perf_counter()
         cached = await self._cache_read(
             "semantic_cache", self._cache.get_semantic(namespace, vector)
         )
+        if state.trace is not None:
+            state.trace.record_stage(
+                "semantic_cache",
+                status=StageStatus.OK,
+                duration_ms=(time.perf_counter() - semantic_started) * 1000,
+                detail="semantic hit" if cached is not None else "miss",
+            )
         if cached is not None:
+            if state.trace is not None:
+                state.trace.mark_cache_hit(CacheStatus.SEMANTIC)
             async for event in self._from_cache(state, cached, active_index.content_version):
                 yield event
             return
@@ -226,8 +308,14 @@ class QueryPipeline:
                 deadline=deadline,
             ),
             state.timings,
+            state,
         )
+        if state.trace is not None:
+            state.trace.set_retrieved(candidates)
         if not candidates:
+            if state.trace is not None:
+                state.trace.abstention_reason = "No chunks retrieved"
+                state.trace.mark_abstention_short_circuit("retrieval")
             async for event in self._no_answer(
                 state, namespace, query, vector, active_index.content_version
             ):
@@ -238,7 +326,10 @@ class QueryPipeline:
             "rerank",
             self._reranker.rerank(query, candidates, self._config.candidate_k, deadline=deadline),
             state.timings,
+            state,
         )
+        if state.trace is not None:
+            state.trace.set_reranked(ranked)
 
         ranked, abstain = await self._correct(
             query,
@@ -253,6 +344,15 @@ class QueryPipeline:
         if scoped_documents and ranked:
             abstain = False
         if abstain:
+            if state.trace is not None:
+                top = ranked[0].score if ranked else None
+                state.trace.abstention_reason = (
+                    f"CRAG/rerank gate: top score {top:.3f} below threshold "
+                    f"{self._calibration.reranker_threshold:.3f}"
+                    if top is not None
+                    else "CRAG/rerank gate: no ranked chunks"
+                )
+                state.trace.mark_abstention_short_circuit("crag")
             async for event in self._no_answer(
                 state, namespace, query, vector, active_index.content_version
             ):
@@ -260,7 +360,12 @@ class QueryPipeline:
             return
 
         contexts = self._select_contexts(ranked)
+        if state.trace is not None:
+            state.trace.set_contexts(contexts, ranked)
         if not contexts:
+            if state.trace is not None:
+                state.trace.abstention_reason = "No context selected within token budget"
+                state.trace.mark_abstention_short_circuit("crag")
             async for event in self._no_answer(
                 state, namespace, query, vector, active_index.content_version
             ):
@@ -311,6 +416,17 @@ class QueryPipeline:
             raise PipelineUnavailable("generation", str(exc)) from exc
         state.timings["generation"] = time.perf_counter() - generation_started
         STAGE_LATENCY.labels(stage="generation").observe(state.timings["generation"])
+        if state.trace is not None:
+            state.trace.record_timing_stage(
+                "generation",
+                state.timings["generation"],
+                detail=self._config.generator_model,
+            )
+            state.trace.set_generator_provider(getattr(self._generator, "last_provider", None))
+            state.trace.set_generation(self._generator)
+            state.trace.set_cited_chunk_ids(
+                [citation.chunk_id for citation in citation_buffer.citations()]
+            )
 
         answer = " ".join(answer_chunks)
         citations = citation_buffer.citations()
@@ -342,6 +458,12 @@ class QueryPipeline:
             below = not ranked or ranked[0].score < self._calibration.reranker_threshold
             if document_ids and ranked:
                 below = False
+            if state.trace is not None:
+                state.trace.record_stage(
+                    "crag",
+                    status=StageStatus.SKIPPED,
+                    detail="CRAG disabled",
+                )
             return ranked, below
         outcome = await self._crag.run(
             query,
@@ -356,6 +478,15 @@ class QueryPipeline:
         state.crag = outcome.trace
         if "crag" in state.timings:
             STAGE_LATENCY.labels(stage="crag").observe(state.timings["crag"])
+        if state.trace is not None:
+            crag_detail = outcome.trace.action.value
+            if outcome.trace.rewrites:
+                crag_detail += f" · {outcome.trace.rewrites} rewrite(s)"
+            state.trace.record_timing_stage(
+                "crag",
+                state.timings.get("crag", 0),
+                detail=crag_detail,
+            )
         return outcome.ranked, outcome.should_abstain
 
     async def _from_cache(
@@ -408,7 +539,13 @@ class QueryPipeline:
         self._record(final, state.started)
         yield {"event": "final", "data": final.model_dump(mode="json")}
 
-    async def _required(self, stage: str, operation: Any, timings: dict[str, float]) -> Any:
+    async def _required(
+        self,
+        stage: str,
+        operation: Any,
+        timings: dict[str, float],
+        state: _RequestState | None = None,
+    ) -> Any:
         started = time.perf_counter()
         try:
             with observation(stage) as span:
@@ -421,6 +558,9 @@ class QueryPipeline:
         elapsed = time.perf_counter() - started
         timings[stage] = elapsed
         STAGE_LATENCY.labels(stage=stage).observe(elapsed)
+        if state is not None and state.trace is not None:
+            stage_id = "embedding" if stage == "embedding" else stage
+            state.trace.record_timing_stage(stage_id, elapsed)
         return result
 
     @staticmethod
@@ -485,6 +625,9 @@ class QueryPipeline:
     ) -> QueryResponse:
         elapsed = time.perf_counter() - state.started
         timings = state.timings
+        trace = None
+        if state.trace is not None:
+            trace = state.trace.build(cache_status=cache_status)
         return QueryResponse(
             query_id=state.query_id,
             trace_id=state.trace_id,
@@ -497,6 +640,7 @@ class QueryPipeline:
             crag=state.crag,
             transcript=state.transcript,
             generator_provider=getattr(self._generator, "last_provider", None),
+            trace=trace,
             timings=QueryTimings(
                 total_ms=elapsed * 1000,
                 stt_ms=timings.get("stt", 0) * 1000,
