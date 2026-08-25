@@ -134,6 +134,18 @@ def chunk() -> Chunk:
     )
 
 
+@pytest.fixture
+def other_chunk() -> Chunk:
+    return Chunk(
+        chunk_id="chunk-2",
+        document_id="doc-2",
+        text="Shipping is free on orders over fifty dollars.",
+        title="Shipping policy",
+        source_uri="shipping.md",
+        page=1,
+    )
+
+
 def make_pipeline(
     chunk: Chunk,
     *,

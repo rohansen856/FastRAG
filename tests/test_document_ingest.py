@@ -14,6 +14,20 @@ from fastrag.guardrails import Guardrails
 from fastrag.pipeline import PipelineConfig, QueryPipeline
 
 
+def test_parse_pdf_extracts_text(tmp_path: Path) -> None:
+    source = Path("/home/rcsen/Downloads/Rohan_s_Resume (6).pdf")
+    if not source.is_file():
+        pytest.skip("local resume fixture not present")
+    pdf_path = tmp_path / "resume.pdf"
+    pdf_path.write_bytes(source.read_bytes())
+
+    doc = parse_file(pdf_path, document_id="user-resume", title="Resume")
+    assert "Rohan" in doc.text
+    assert "FastRAG" in doc.text or "experience" in doc.text.casefold()
+    assert not doc.text.startswith("%PDF-")
+    assert "endstream" not in doc.text[:500]
+
+
 @pytest.mark.asyncio
 async def test_parse_text_and_json(tmp_path: Path) -> None:
     text_path = tmp_path / "notes.txt"

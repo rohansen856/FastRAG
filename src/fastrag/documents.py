@@ -10,8 +10,9 @@ from pathlib import Path
 
 from .chunking import SourceDocument
 
-# LlamaIndex SimpleDirectoryReader handles pdf/md/txt when pypdf is installed.
-READER_SUFFIXES = frozenset({".pdf", ".md", ".markdown", ".txt"})
+# LlamaIndex SimpleDirectoryReader for md/txt. PDF uses pypdf directly — SimpleDirectoryReader
+# reads many PDFs as raw bytes (%PDF-…/endstream) instead of extracted text.
+READER_SUFFIXES = frozenset({".md", ".markdown", ".txt"})
 
 SUPPORTED_SUFFIXES = frozenset(
     {
@@ -64,6 +65,8 @@ def is_user_document(document_id: str) -> bool:
 def parse_file(path: Path, *, document_id: str, title: str | None = None) -> SourceDocument:
     suffix = path.suffix.casefold()
     display = title or path.name
+    if suffix == ".pdf":
+        return _parse_pdf(path, document_id=document_id, title=display)
     if suffix in READER_SUFFIXES:
         return _parse_with_llama_index(path, document_id=document_id, title=display)
     text = _read_text_fallback(path, suffix)
@@ -74,6 +77,39 @@ def parse_file(path: Path, *, document_id: str, title: str | None = None) -> Sou
         text=text,
         title=display,
         source_uri=str(path),
+    )
+
+
+def _looks_like_raw_pdf(text: str) -> bool:
+    sample = text[:4096]
+    if sample.startswith("%PDF-"):
+        return True
+    markers = sum(1 for token in ("endstream", "endobj", "/FlateDecode") if token in sample)
+    return markers >= 2
+
+
+def _parse_pdf(path: Path, *, document_id: str, title: str) -> SourceDocument:
+    from pypdf import PdfReader
+
+    reader = PdfReader(str(path))
+    parts: list[str] = []
+    for page in reader.pages:
+        piece = (page.extract_text() or "").strip()
+        if piece:
+            parts.append(piece)
+    text = "\n\n".join(parts).strip()
+    if not text:
+        raise ValueError("document produced no extractable text; OCR may be required")
+    if _looks_like_raw_pdf(text):
+        raise ValueError("PDF text extraction failed; the file may be scanned or encrypted")
+    page_count = len(reader.pages)
+    return SourceDocument(
+        document_id=document_id,
+        text=text,
+        title=title,
+        source_uri=str(path),
+        page=page_count if page_count == 1 else None,
+        metadata={"file_name": path.name, "page_count": page_count},
     )
 
 

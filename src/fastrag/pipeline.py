@@ -372,11 +372,12 @@ class QueryPipeline:
                 yield event
             return
 
-        citation_buffer = SentenceCitationBuffer(contexts)
+        citation_buffer = SentenceCitationBuffer(contexts, auto_cite=bool(scoped_documents))
         answer_chunks: list[str] = []
         raw_answer = ""
         generation_started = time.perf_counter()
         first_chunk = True
+        generation_failed = False
         try:
             with observation(
                 "generation",
@@ -403,14 +404,31 @@ class QueryPipeline:
                     output=self._generation_trace_output(raw_answer),
                 )
         except CitationValidationError as exc:
-            if NO_ANSWER_TEXT.casefold() in raw_answer.casefold():
+            generation_failed = True
+            if (
+                NO_ANSWER_TEXT.casefold() in raw_answer.casefold()
+                and not answer_chunks
+            ):
                 async for event in self._no_answer(
                     state, namespace, query, vector, active_index.content_version
                 ):
                     yield event
                 return
-            FAILURES.labels(stage="citation_validation").inc()
-            raise PipelineUnavailable("citation_validation", str(exc)) from exc
+            if scoped_documents and raw_answer.strip():
+                try:
+                    answer_chunks = citation_buffer.salvage(raw_answer)
+                    generation_failed = False
+                except CitationValidationError:
+                    pass
+            if generation_failed:
+                if "unknown citation marker" in str(exc):
+                    FAILURES.labels(stage="citation_validation").inc()
+                    raise PipelineUnavailable("citation_validation", str(exc)) from exc
+                async for event in self._no_answer(
+                    state, namespace, query, vector, active_index.content_version
+                ):
+                    yield event
+                return
         except Exception as exc:
             FAILURES.labels(stage="generation").inc()
             raise PipelineUnavailable("generation", str(exc)) from exc
