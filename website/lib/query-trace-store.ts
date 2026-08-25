@@ -61,6 +61,13 @@ export function loadQueryTrace(queryId: string): StoredQueryTrace | null {
   }
 }
 
+/** Most recent trace in this browser session (hero only keeps one active question). */
+export function loadLatestQueryTrace(): StoredQueryTrace | null {
+  const [latestId] = readIndex();
+  if (!latestId) return null;
+  return loadQueryTrace(latestId);
+}
+
 export function listRecentTraces(): StoredQueryTrace[] {
   return readIndex()
     .map((id) => loadQueryTrace(id))

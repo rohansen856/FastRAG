@@ -154,7 +154,7 @@ export function AnswerChatSection({
                   </p>
                   {response.trace && (
                     <Link
-                      href={`/query/${response.query_id}`}
+                      href="/query"
                       className="inline-flex items-center gap-1.5 rounded-full border border-foreground/15 px-3 py-1 text-xs font-mono text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
                     >
                       <GitBranch className="h-3.5 w-3.5" />

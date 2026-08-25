@@ -28,12 +28,20 @@ export function TraceSection({
   return (
     <section
       ref={ref}
-      className={`rounded-xl border border-foreground/10 bg-background/70 p-5 lg:p-6 shadow-sm transition-all duration-700 ${className} ${
+      className={`h-fit self-start rounded-xl border border-foreground/10 bg-background/70 p-5 lg:p-6 shadow-sm transition-all duration-700 ${className} ${
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
       }`}
       style={{ transitionDelay: `${delay}ms` }}
     >
       {children}
     </section>
+  );
+}
+
+export function TraceSectionTitle({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="mb-4 text-xs font-mono uppercase tracking-widest text-muted-foreground">
+      {children}
+    </h2>
   );
 }
