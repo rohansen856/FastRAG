@@ -53,6 +53,64 @@ export interface Transcript {
   duration_ms: number;
 }
 
+export type StageStatus = "ok" | "skipped" | "blocked";
+
+export interface PipelineStageTrace {
+  id: string;
+  label: string;
+  status: StageStatus;
+  duration_ms: number;
+  detail: string | null;
+}
+
+export interface ChunkTrace {
+  rank: number;
+  chunk_id: string;
+  document_id: string;
+  title: string;
+  score: number;
+  excerpt: string;
+  refined?: boolean;
+}
+
+export interface GenerationTrace {
+  provider: string | null;
+  model: string | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+}
+
+export interface QueryTrace {
+  query: string;
+  strategy: string;
+  language: string | null;
+  document_ids: string[];
+  profile: string;
+  collection_name: string | null;
+  content_version: string | null;
+  cache_namespace: string | null;
+  cache_status: CacheStatus;
+  embedding_fingerprint: string | null;
+  reranker_fingerprint: string | null;
+  generator_model: string | null;
+  generator_provider: string | null;
+  stt_provider: string | null;
+  stt_model: string | null;
+  reranker_threshold: number | null;
+  crag_confident_threshold: number | null;
+  offtopic_threshold: number | null;
+  stages: PipelineStageTrace[];
+  retrieved: ChunkTrace[];
+  reranked: ChunkTrace[];
+  contexts: ChunkTrace[];
+  cited_chunk_ids: string[];
+  candidate_k: number;
+  context_top_k: number;
+  abstention_reason: string | null;
+  generation: GenerationTrace | null;
+}
+
 export interface IngestResult {
   document_id: string;
   title: string;
@@ -80,6 +138,7 @@ export interface QueryResponse {
   crag: CragTrace | null;
   transcript: Transcript | null;
   generator_provider: string | null;
+  trace?: QueryTrace | null;
 }
 
 export interface Percentiles {

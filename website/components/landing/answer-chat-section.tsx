@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { GitBranch } from "lucide-react";
 import type { Citation, QueryResponse } from "@/lib/types";
 
 const OUTCOME_LABELS: Record<string, string> = {
@@ -145,10 +147,21 @@ export function AnswerChatSection({
               )}
 
               {response?.timings && !streaming && (
-                <p className="mt-6 text-xs font-mono text-muted-foreground">
-                  {response.timings.total_ms.toFixed(0)} ms total
-                  {response.generator_provider ? ` · ${response.generator_provider}` : ""}
-                </p>
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <p className="text-xs font-mono text-muted-foreground">
+                    {response.timings.total_ms.toFixed(0)} ms total
+                    {response.generator_provider ? ` · ${response.generator_provider}` : ""}
+                  </p>
+                  {response.trace && (
+                    <Link
+                      href={`/query/${response.query_id}`}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-foreground/15 px-3 py-1 text-xs font-mono text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                    >
+                      <GitBranch className="h-3.5 w-3.5" />
+                      View pipeline trace
+                    </Link>
+                  )}
+                </div>
               )}
             </div>
           </div>

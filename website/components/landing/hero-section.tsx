@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Mic, Paperclip, Settings, Square, X } from "lucide-react";
 import { ingestDocument, deleteDocument, textQuery, voiceQuery } from "@/lib/api";
+import { saveQueryTrace } from "@/lib/query-trace-store";
 import { MAX_ATTACHMENTS, UPLOAD_ACCEPT, validateUploadFile } from "@/lib/upload";
 import { MicRecorder } from "@/lib/audio";
 import type { IngestResult, QueryResponse, Transcript } from "@/lib/types";
@@ -258,6 +259,10 @@ export function HeroSection() {
     },
     onChunk: (text: string) => setAnswer((current) => (current ? `${current} ${text}` : text)),
     onFinal: (value: QueryResponse) => {
+      saveQueryTrace(askedQuestion || question, value, {
+        scopeMode,
+        attachedCount: attachedDocs.length,
+      });
       setResponse(value);
       if (value.transcript) {
         setQuestion(value.transcript.text);
