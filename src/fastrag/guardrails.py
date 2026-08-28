@@ -126,16 +126,26 @@ class Guardrails:
                 return _blocked(GuardrailRule.UNSUPPORTED_LANGUAGE, f"detected language {language}")
         return ALLOWED
 
-    def check_vector(self, vector: Sequence[float]) -> GuardrailDecision:
+    def check_vector(
+        self,
+        vector: Sequence[float],
+        *,
+        offtopic_threshold: float | None = None,
+    ) -> GuardrailDecision:
         """Off-topic detection against the corpus centroid.
 
         This reuses the query embedding the pipeline computed anyway, so the
         added cost is a dot product rather than another provider round trip.
         """
-        if not self._enabled or self._centroid is None or self._offtopic_threshold is None:
+        threshold = (
+            offtopic_threshold
+            if offtopic_threshold is not None
+            else self._offtopic_threshold
+        )
+        if not self._enabled or self._centroid is None or threshold is None:
             return ALLOWED
         similarity = _cosine(vector, self._centroid)
-        if similarity < self._offtopic_threshold:
+        if similarity < threshold:
             return _blocked(
                 GuardrailRule.OFF_TOPIC,
                 "query is far from the indexed corpus",

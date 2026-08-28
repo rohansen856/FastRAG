@@ -91,6 +91,7 @@ class QueryTraceBuilder:
         reranker_threshold: float,
         crag_confident_threshold: float | None,
         offtopic_threshold: float | None,
+        overrides_applied: dict[str, Any] | None = None,
     ) -> None:
         self.query = query
         self.strategy = strategy
@@ -105,6 +106,7 @@ class QueryTraceBuilder:
         self.reranker_threshold = reranker_threshold
         self.crag_confident_threshold = crag_confident_threshold
         self.offtopic_threshold = offtopic_threshold
+        self.overrides_applied = overrides_applied
         self.collection_name: str | None = None
         self.content_version: str | None = None
         self.cache_namespace: str | None = None
@@ -269,6 +271,7 @@ class QueryTraceBuilder:
             context_top_k=self.context_top_k,
             abstention_reason=self.abstention_reason,
             generation=self.generation,
+            overrides_applied=self.overrides_applied,
         )
 
 

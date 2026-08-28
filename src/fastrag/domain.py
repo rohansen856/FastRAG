@@ -36,12 +36,31 @@ class GuardrailRule(StrEnum):
     EMPTY = "empty"
 
 
+class LlmOverrides(BaseModel):
+    base_url: str | None = None
+    api_key: str | None = None
+    model: str | None = None
+    max_tokens: int | None = Field(default=None, ge=1, le=8192)
+
+
+class QueryOverrides(BaseModel):
+    skip_cache: bool = False
+    crag_enabled: bool | None = None
+    candidate_k: int | None = Field(default=None, ge=1, le=100)
+    context_top_k: int | None = Field(default=None, ge=1, le=20)
+    reranker_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
+    crag_confident_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
+    offtopic_threshold: float | None = Field(default=None, ge=-1.0, le=1.0)
+    llm: LlmOverrides | None = None
+
+
 class QueryRequest(BaseModel):
     query: str = Field(min_length=1, max_length=4_000)
     language: str | None = None
     strategy: str | None = None
     document_id: str | None = None
     document_ids: list[str] | None = None
+    overrides: QueryOverrides | None = None
 
 
 class Citation(BaseModel):
@@ -165,6 +184,7 @@ class QueryTrace(BaseModel):
     context_top_k: int = 0
     abstention_reason: str | None = None
     generation: GenerationTrace | None = None
+    overrides_applied: dict[str, Any] | None = None
 
 
 class QueryResponse(BaseModel):

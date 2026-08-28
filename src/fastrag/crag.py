@@ -73,13 +73,16 @@ class CorrectiveRetrieval:
         self._strip_min_tokens = strip_min_tokens
         self._candidate_k = candidate_k
 
-    def grade(self, ranked: Sequence[RankedChunk]) -> CragAction:
+    def grade(
+        self, ranked: Sequence[RankedChunk], *, calibration: Calibration | None = None
+    ) -> CragAction:
+        active = calibration or self._calibration
         if not ranked:
             return CragAction.INCORRECT
         top = ranked[0].score
-        if top >= self._calibration.crag_upper:
+        if top >= active.crag_upper:
             return CragAction.CORRECT
-        if top >= self._calibration.reranker_threshold:
+        if top >= active.reranker_threshold:
             return CragAction.AMBIGUOUS
         return CragAction.INCORRECT
 
@@ -94,9 +97,13 @@ class CorrectiveRetrieval:
         document_ids: list[str] | None = None,
         deadline: Deadline | None = None,
         timings: dict[str, float] | None = None,
+        calibration: Calibration | None = None,
+        candidate_k: int | None = None,
     ) -> CragOutcome:
+        active_calibration = calibration or self._calibration
+        active_candidate_k = candidate_k if candidate_k is not None else self._candidate_k
         if not self._enabled:
-            below = not ranked or ranked[0].score < self._calibration.reranker_threshold
+            below = not ranked or ranked[0].score < active_calibration.reranker_threshold
             return CragOutcome(
                 action=CragAction.DISABLED,
                 ranked=ranked,
@@ -108,7 +115,7 @@ class CorrectiveRetrieval:
             )
 
         started = time.perf_counter()
-        action = self.grade(ranked)
+        action = self.grade(ranked, calibration=active_calibration)
         CRAG_ACTIONS.labels(action=action.value).inc()
 
         if action is CragAction.CORRECT:
@@ -119,7 +126,13 @@ class CorrectiveRetrieval:
                 should_abstain=False,
             )
         elif action is CragAction.AMBIGUOUS:
-            outcome = await self._refine(query, ranked, deadline=deadline)
+            outcome = await self._refine(
+                query,
+                ranked,
+                deadline=deadline,
+                calibration=active_calibration,
+                candidate_k=active_candidate_k,
+            )
         else:
             outcome = await self._rewrite_and_retry(
                 query,
@@ -129,6 +142,8 @@ class CorrectiveRetrieval:
                 language=language,
                 document_ids=document_ids,
                 deadline=deadline,
+                calibration=active_calibration,
+                candidate_k=active_candidate_k,
             )
 
         if timings is not None:
@@ -136,8 +151,16 @@ class CorrectiveRetrieval:
         return outcome
 
     async def _refine(
-        self, query: str, ranked: list[RankedChunk], *, deadline: Deadline | None
+        self,
+        query: str,
+        ranked: list[RankedChunk],
+        *,
+        deadline: Deadline | None,
+        calibration: Calibration | None = None,
+        candidate_k: int | None = None,
     ) -> CragOutcome:
+        active_calibration = calibration or self._calibration
+        active_candidate_k = candidate_k if candidate_k is not None else self._candidate_k
         """Knowledge refinement: keep only the strips that actually carry signal.
 
         A passage can rank mid-band because one relevant sentence is buried in
@@ -145,7 +168,7 @@ class CorrectiveRetrieval:
         rest, which measurably lifts faithfulness without another retrieval.
         """
         strips: list[tuple[int, str]] = []
-        for index, item in enumerate(ranked[: self._candidate_k]):
+        for index, item in enumerate(ranked[:active_candidate_k]):
             for sentence in split_sentences(item.chunk.text):
                 if len(sentence.split()) >= 4:
                     strips.append((index, sentence))
@@ -158,7 +181,7 @@ class CorrectiveRetrieval:
             )
 
         scores = await self._reranker.score(query, [text for _, text in strips])
-        threshold = self._calibration.reranker_threshold
+        threshold = active_calibration.reranker_threshold
         kept: dict[int, list[str]] = {}
         for (chunk_index, sentence), score in zip(strips, scores, strict=True):
             if score >= threshold:
@@ -219,7 +242,11 @@ class CorrectiveRetrieval:
         language: str | None,
         document_ids: list[str] | None,
         deadline: Deadline | None,
+        calibration: Calibration | None = None,
+        candidate_k: int | None = None,
     ) -> CragOutcome:
+        active_calibration = calibration or self._calibration
+        active_candidate_k = candidate_k if candidate_k is not None else self._candidate_k
         top_score = ranked[0].score if ranked else None
         if self._max_rewrites < 1 or self._generator is None:
             return CragOutcome(
@@ -250,7 +277,7 @@ class CorrectiveRetrieval:
         candidates = await self._retriever.retrieve(
             rewritten,
             vector,
-            self._candidate_k,
+            active_candidate_k,
             collection=collection,
             strategy=strategy,
             language=language,
@@ -258,11 +285,11 @@ class CorrectiveRetrieval:
             deadline=deadline,
         )
         retried = await self._reranker.rerank(
-            rewritten, candidates, self._candidate_k, deadline=deadline
+            rewritten, candidates, active_candidate_k, deadline=deadline
         )
         CRAG_ACTIONS.labels(action="rewrite").inc()
         passed = bool(retried) and (
-            bool(document_ids) or retried[0].score >= self._calibration.reranker_threshold
+            bool(document_ids) or retried[0].score >= active_calibration.reranker_threshold
         )
         return CragOutcome(
             action=CragAction.INCORRECT,

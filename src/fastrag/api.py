@@ -33,12 +33,13 @@ from .admin import create_admin_router
 from .bootstrap import build_pipeline, build_transcriber
 from .chunking import STRATEGY_NAMES
 from .config import Settings, get_settings
-from .domain import QueryRequest, QueryResponse, Transcript
+from .domain import QueryOverrides, QueryRequest, QueryResponse, Transcript
 from .harness import Deadline, ProviderError
 from .ingest_document import DocumentIngestError, delete_user_document, ingest_upload
 from .observability import observation
 from .pipeline import PipelineUnavailable, QueryPipeline
 from .ports import Transcriber
+from .query_overrides import has_overrides
 
 logger = logging.getLogger("fastrag.api")
 
@@ -107,6 +108,13 @@ def create_app(
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
         return cast(QueryPipeline, request.app.state.pipeline)
 
+    def validate_overrides(body: QueryRequest) -> None:
+        if has_overrides(body.overrides) and not configured.query_overrides_allowed:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="query overrides are disabled on this deployment",
+            )
+
     def current_transcriber(request: Request) -> Transcriber:
         candidate = getattr(request.app.state, "transcriber", None)
         if candidate is None:
@@ -143,6 +151,7 @@ def create_app(
         dependencies=[Depends(require_query_key)],
     )
     async def query(body: QueryRequest, request: Request) -> QueryResponse:
+        validate_overrides(body)
         trace_id = uuid.uuid4().hex
         try:
             with observation("rag-query", trace_id=trace_id, metadata=trace_metadata(body.query)):
@@ -153,6 +162,7 @@ def create_app(
                     language=body.language,
                     document_id=body.document_id,
                     document_ids=body.document_ids,
+                    overrides=body.overrides,
                 )
         except PipelineUnavailable as exc:
             raise HTTPException(
@@ -162,6 +172,7 @@ def create_app(
 
     @app.post("/v1/query/stream", dependencies=[Depends(require_query_key)])
     async def query_stream(body: QueryRequest, request: Request) -> EventSourceResponse:
+        validate_overrides(body)
         pipeline_ref = current_pipeline(request)
         return EventSourceResponse(
             _stream_events(
@@ -172,6 +183,7 @@ def create_app(
                 language=body.language,
                 document_id=body.document_id,
                 document_ids=body.document_ids,
+                overrides=body.overrides,
             )
         )
 
@@ -399,6 +411,7 @@ async def _stream_events(
     document_id: str | None = None,
     document_ids: list[str] | None = None,
     transcript: Transcript | None = None,
+    overrides: QueryOverrides | None = None,
 ) -> AsyncIterator[dict[str, str]]:
     trace_id = uuid.uuid4().hex
     try:
@@ -411,6 +424,7 @@ async def _stream_events(
                 document_id=document_id,
                 document_ids=document_ids,
                 transcript=transcript,
+                overrides=overrides,
             ):
                 if event["event"] == "final":
                     span.update(output={"outcome": event["data"]["outcome"]})

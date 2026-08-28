@@ -273,6 +273,10 @@ async def build_pipeline(settings: Settings) -> tuple[QueryPipeline, RedisAnswer
             chunk_strategy=strategies[0] if strategies else "sentence",
             deadline_seconds=settings.effective_request_deadline_seconds,
             profile=settings.profile,
+            llm_base_url=settings.llm_base_url,
+            llm_api_key=settings.llm_api_key.get_secret_value(),
+            system_prompt=settings.prompt_path.read_text(),
+            llm_timeout_seconds=settings.effective_llm_timeout_seconds,
         ),
     )
     return pipeline, cache

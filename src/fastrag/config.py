@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     release: str = "dev"
     log_level: str = "INFO"
+    allow_query_overrides: bool | None = None
     query_api_key: SecretStr = SecretStr("change-me-query")
     admin_api_key: SecretStr = SecretStr("change-me-admin")
 
@@ -230,6 +231,12 @@ class Settings(BaseSettings):
     @property
     def chunk_strategy_list(self) -> list[str]:
         return [name.strip() for name in self.chunk_strategies.split(",") if name.strip()]
+
+    @property
+    def query_overrides_allowed(self) -> bool:
+        if self.allow_query_overrides is not None:
+            return self.allow_query_overrides
+        return self.environment == "development"
 
     @property
     def cors_origin_list(self) -> list[str]:
