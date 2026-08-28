@@ -149,13 +149,29 @@ curl -N \
 ```
 
 Add `"strategy"` to compare chunking strategies, and `"language"` to filter to one language.
+`GET /v1/strategies` lists indexed strategies.
+
+After a query, open the **website** trace page at http://localhost:3000/query (run a question
+on the home page first; traces live in browser `sessionStorage` only). Use the Experiment
+panel to re-run with `overrides`; see [query-trace.md](query-trace.md).
+
+Query overrides for the `/query` Experiment panel are on in `.env.local.example`
+(`FASTRAG_ALLOW_QUERY_OVERRIDES=true`). They also apply when
+`FASTRAG_ENVIRONMENT=development` and the flag is unset.
+
+Smoke-test overrides:
+
+```bash
+FASTRAG_API_URL=http://localhost:8000 uv run python scripts/e2e_query_overrides.py
+cd website && npx tsx scripts/check-build-overrides.ts
+```
 
 ## Run the frontends
 
 Both apps proxy through `/api/rag/[...path]` so `FASTRAG_QUERY_TOKEN` stays server-side.
 `FASTRAG_CORS_ORIGINS` only matters if the browser calls the API directly.
 
-**Landing (`website/`)** - marketing page with hero text/mic ask and chat answers:
+**Landing (`website/`)** - marketing page with hero text/mic ask, chat answers, `/query` trace:
 
 ```bash
 cd website
@@ -163,6 +179,9 @@ cp .env.example .env.local     # FASTRAG_API_URL=http://localhost:8000
 npm install
 npm run dev                    # http://localhost:3000
 ```
+
+Run a question on `/`, then open `/query` to inspect the pipeline trace or re-run with
+edited config. See [query-trace.md](query-trace.md).
 
 **Console (`web/`)** - latency, strategies, CRAG/guardrails, bench dashboard:
 

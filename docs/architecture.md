@@ -41,11 +41,20 @@ UIs on Vercel). `FASTRAG_PROFILE` selects between them. See [providers.md](provi
 14. Sentence-level citation validation only releases complete sentences with valid
     `[C:chunk-id]` source markers.
 15. The final answer, citations, cache status, stage timings, guardrail decision, CRAG trace,
-    transcript, and generating provider are returned.
+    **`QueryTrace`** (stages, funnel, thresholds, `overrides_applied`), transcript, and
+    generating provider are returned. See [query-trace.md](query-trace.md).
 
 Infrastructure failures are fail-closed. Retrieval, rerank, generation, and citation errors
 return service errors, not fake no-answer responses. Cache, tracing, and the optional model
 safety classifier are fail-open.
+
+### Per-request overrides
+
+When enabled (`FASTRAG_ALLOW_QUERY_OVERRIDES` or `development` environment), clients may pass
+`QueryOverrides` on the query body to skip cache, toggle CRAG, change retrieval K limits,
+override calibration thresholds, or use a request-scoped LLM. Effective values are recorded in
+`trace.overrides_applied` (API keys redacted). Production defaults to disabled. See
+[query-trace.md](query-trace.md).
 
 ## Components
 
@@ -66,7 +75,8 @@ ingestion is an offline script rather than the worker.
 
 ## Frontends
 
-- `website/`: Next.js marketing landing with hero text/voice ask and chat-style answers.
+- `website/`: Next.js marketing landing with hero text/voice ask, chat-style answers, and
+  `/query` pipeline trace + experiment re-runs (sessionStorage, not server-persisted).
 - `web/`: Next.js operator console (latency, strategies, CRAG/guardrails, benchmarks).
 
 Both proxy `/api/rag/*` to FastAPI with a server-only query token. See
@@ -100,7 +110,8 @@ enforces grounding mechanically:
 
 - no candidates or low reranker score returns `I don't know based on the available sources.`;
 - answer sentences are withheld until a valid source marker is seen;
-- markers that do not refer to supplied chunks fail the request;
+- markers that do not refer to supplied chunks fail the request (scoped uploads may auto-map
+  markers or salvage partial answers when chunks were retrieved - see `citations.py`);
 - CRAG abstains rather than answering when a rewrite fails or its retry still scores low;
 - input guardrails produce a distinct `REFUSED` outcome, which is never cached;
 - infrastructure errors never become no-answer responses.

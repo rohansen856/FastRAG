@@ -134,10 +134,17 @@ Add `strategy` to compare chunking strategies and `language` to filter to one la
 `GET /v1/strategies` reports what is indexed.
 
 Answers include ordered citations with document, chunk, page, source URI, and excerpt, plus
-the guardrail decision, CRAG trace, per-stage timings, and which provider generated the
-answer. Dependency outages return an HTTP/SSE service error and are never represented as
-“I don't know.” Cache, telemetry, and the optional safety classifier are fail-open;
-retrieval, reranking, citation validation, and generation failures are fail-closed.
+the guardrail decision, CRAG trace, per-stage timings, a developer **`trace`** payload
+(stages, retrieval funnel, thresholds, `overrides_applied`), and which provider generated the
+answer. See [query-trace.md](docs/query-trace.md). Dependency outages return an HTTP/SSE
+service error and are never represented as “I don't know.” Cache, telemetry, and the optional
+safety classifier are fail-open; retrieval, reranking, citation validation, and generation
+failures are fail-closed.
+
+Optional **`overrides`** on the query body let you skip cache, toggle CRAG, change K limits,
+adjust calibration thresholds, or point at a different LLM for one request. Disabled by default
+in production; enabled in `development` or with `FASTRAG_ALLOW_QUERY_OVERRIDES=true`. Details
+in [query-trace.md](docs/query-trace.md).
 
 ## Voice API
 
@@ -161,7 +168,7 @@ Two Next.js apps share the same server-side proxy pattern (`FASTRAG_API_URL` +
 
 | App | Role | Dev |
 |-----|------|-----|
-| [`website/`](website/) | Marketing landing: hero ask (text + mic), chat answers with citations, product story | `cd website && npm install && npm run dev` → http://localhost:3000 |
+| [`website/`](website/) | Marketing landing: hero ask (text + mic), chat answers with citations, **pipeline trace page** (`/query`) with experiment re-runs | `cd website && npm install && npm run dev` → http://localhost:3000 |
 | [`web/`](web/) | Operator console: latency panel, strategy comparison, CRAG/guardrail traces, bench dashboard | `cd web && npm install && npm run dev -- -p 3001` → http://localhost:3001 |
 
 Both talk to the API through `/api/rag/[...path]`. Copy each app’s `.env.example` to
@@ -207,6 +214,8 @@ See [the runbook](docs/runbook.md) for backup, rollback, outage, quality, and co
 
 ## Documentation
 
+- [Query trace & overrides](docs/query-trace.md): `trace` on responses, per-request
+  `overrides`, and the website `/query` experiment panel.
 - [Architecture](docs/architecture.md): request flow, components, versioning, grounding, and
   deployment boundaries.
 - [Providers](docs/providers.md): the two profiles, the free-tier matrix, hosted-model

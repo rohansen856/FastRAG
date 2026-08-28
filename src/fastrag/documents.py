@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .chunking import SourceDocument
 
-# LlamaIndex SimpleDirectoryReader for md/txt. PDF uses pypdf directly — SimpleDirectoryReader
+# LlamaIndex SimpleDirectoryReader for md/txt. PDF uses pypdf directly - SimpleDirectoryReader
 # reads many PDFs as raw bytes (%PDF-…/endstream) instead of extracted text.
 READER_SUFFIXES = frozenset({".md", ".markdown", ".txt"})
 

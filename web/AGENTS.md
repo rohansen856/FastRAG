@@ -11,7 +11,8 @@ This block is written and re-added by `next dev` - verify at `node_modules/next/
 # FastRAG `web/`
 
 Operator console: mic/text query, latency panel, strategy comparison, CRAG/guardrail traces,
-benchmark dashboard. Proxies API via `app/api/rag/[...path]/route.ts`. Prefer port `3001`
+benchmark dashboard. Full pipeline trace bento + experiment re-runs live on **`website/`**
+(`/query`), not here yet. Proxies API via `app/api/rag/[...path]/route.ts`. Prefer port `3001`
 locally when `website/` already uses `3000`.
 
 Env (`.env.local` from `.env.example`): `FASTRAG_API_URL`, `FASTRAG_QUERY_TOKEN` (server-only).

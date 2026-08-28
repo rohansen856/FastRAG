@@ -11,7 +11,10 @@ This block is written and re-added by `next dev` - verify at `node_modules/next/
 # FastRAG `website/`
 
 Marketing landing for FastRAG. Hero text + mic ask, chat answers with citations below the
-marquee. Proxies API via `app/api/rag/[...path]/route.ts`.
+marquee. **`/query`** - pipeline trace bento (timeline, path diagram, funnel, citations) plus
+Experiment panel to re-run with `overrides`. Traces stored in `sessionStorage` only.
+
+Proxies API via `app/api/rag/[...path]/route.ts`.
 
 Env (`.env.local` from `.env.example`): `FASTRAG_API_URL`, `FASTRAG_QUERY_TOKEN` (server-only).
 

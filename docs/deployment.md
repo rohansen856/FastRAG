@@ -52,6 +52,8 @@ bundle.
    - `FASTRAG_DATABASE_URL`, `FASTRAG_REDIS_URL`
    - `FASTRAG_CALIBRATION_JSON` - paste the full JSON from local
      `config/calibration.json` (gitignored; without this, startup fails)
+   - `FASTRAG_ALLOW_QUERY_OVERRIDES=false` (default in `.env.cloud.example`; set `true` only
+     on trusted staging for `/query`-style experiments)
 3. Redeploy. Open `/health/ready` - on failure it returns `{"status":"not_ready","error":"..."}`
    instead of a blank 500. Fix whatever `error` names, then confirm `/build` with the admin key.
 
@@ -82,7 +84,7 @@ Use **separate** Vercel projects from the FastAPI API project (do not set Root D
 
 | Project | Root Directory | Role |
 |---------|----------------|------|
-| Landing | `website/` | Public marketing site + hero ask / chat |
+| Landing | `website/` | Public marketing site + hero ask / chat + `/query` pipeline trace |
 | Console (optional) | `web/` | Operator latency / CRAG / bench UI |
 
 Do not put `web/` or `website/` in the root [`.vercelignore`](../.vercelignore) - that file
@@ -96,6 +98,9 @@ Each has its own `vercel.json` (`maxDuration` 60s on the RAG proxy for SSE). In 
 Neither is prefixed `NEXT_PUBLIC_`. Proxy route `app/api/rag/[...path]/route.ts` keeps the
 token server-side, so the landing origin does **not** need to be in `FASTRAG_CORS_ORIGINS`
 unless you bypass the proxy and call the API from the browser.
+
+**Query overrides:** `.env.cloud.example` sets `FASTRAG_ALLOW_QUERY_OVERRIDES=false`.
+Keep that on production API deploys. See [query-trace.md](query-trace.md).
 
 ## Self-hosted Langfuse is opt-in
 
@@ -121,7 +126,8 @@ curl -fsS -H "Authorization: Bearer $KEY" https://your-api.vercel.app/build
 `/build` reports the release, profile, and the three active providers, which is the quickest
 way to confirm the deployed service is wired the way you think it is. Then drive a real voice
 query through `website/` or `web/` and check that transcript, citations, guardrail decision,
-CRAG trace, and Langfuse spans all appear.
+CRAG trace, and Langfuse spans all appear. On `website/`, run a hero query and open `/query`
+to confirm the trace payload and Experiment re-run path.
 
 ## What this topology gives up
 

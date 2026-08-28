@@ -5,7 +5,8 @@ retrieved context first and takes a corrective action when it is weak. That is w
 fluent, confident answer being built on the wrong passage.
 
 Implementation: [`src/fastrag/crag.py`](../src/fastrag/crag.py). Disable with
-`FASTRAG_CRAG_ENABLED=false`.
+`FASTRAG_CRAG_ENABLED=false`, or per-request with `overrides.crag_enabled` when query
+overrides are allowed ([query-trace.md](query-trace.md)).
 
 ## The grader is the reranker
 

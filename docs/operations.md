@@ -38,6 +38,8 @@ FastRAG can read the active index snapshot, query Qdrant, and return cited answe
 - Expose Grafana only behind authenticated infrastructure.
 - Use TLS for public FastRAG and Langfuse endpoints.
 - Keep `FASTRAG_TRACE_RAW_CONTENT=false` unless a controlled debugging session requires it.
+- Keep `FASTRAG_ALLOW_QUERY_OVERRIDES=false` (or unset) on production; overrides expose
+  per-request LLM routing and calibration changes. See [query-trace.md](query-trace.md).
 - Protect vector DB, Redis, PostgreSQL, ClickHouse, and MinIO on private networks.
 - Treat document deletion as delete chunks plus re-index or alias promotion to a clean index.
 

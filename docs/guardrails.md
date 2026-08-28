@@ -31,7 +31,9 @@ expensive ones are last.
 Cosine similarity between the query vector and the corpus centroid. This reuses the
 embedding the pipeline computed anyway, so the marginal cost is a dot product rather than
 another provider round trip. Below the calibrated threshold, the query is off-topic and is
-refused without touching Qdrant.
+refused without touching Qdrant. Thresholds are **cosine similarities in [−1, 1]**; calibration
+often places the gate slightly below zero when on-topic queries sit in the negative-similarity
+region of the embedding space.
 
 The centroid and its threshold are produced during calibration from the same held-out set as
 the other thresholds. Without a calibration artifact the check is skipped rather than

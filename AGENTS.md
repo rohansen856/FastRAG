@@ -9,7 +9,7 @@ frontends; docs in `docs/`.
 |------|------|
 | `src/fastrag/` | FastAPI pipeline: retrieval, CRAG, guardrails, cache, STT, harness |
 | `scripts/` | Ingest, calibrate, bench, golden gate, smoke tests |
-| `website/` | Marketing landing (hero ask + chat). Dev: `:3000` |
+| `website/` | Marketing landing (hero ask + chat, `/query` pipeline trace). Dev: `:3000` |
 | `web/` | Operator console (latency, strategies, CRAG, bench). Dev: `:3001` |
 | `docs/` | Architecture, providers, deploy, voice, chunking, CRAG, etc. |
 | `compose.yaml` / `render.yaml` / `vercel.json` | Local stack; Render Blueprint; Vercel FastAPI function |
@@ -29,6 +29,11 @@ Both apps use `FASTRAG_API_URL` + `FASTRAG_QUERY_TOKEN` (server-only) and
 `app/api/rag/[...path]/route.ts`. Do not use `NEXT_PUBLIC_` for the token.
 Normalize SSE `\r\n` → `\n` in client parsers. Mic audio is re-encoded to 16 kHz mono WAV in
 `lib/audio.ts` in each app.
+
+**Query trace (`website/` only):** hero saves `response.trace` to `sessionStorage`;
+`/query` renders bento trace UI + Experiment panel. Re-runs call `/v1/query/stream` with
+`overrides` (see `docs/query-trace.md`). Overrides allowed when
+`FASTRAG_ALLOW_QUERY_OVERRIDES=true` or `FASTRAG_ENVIRONMENT=development`.
 
 ## Conventions
 

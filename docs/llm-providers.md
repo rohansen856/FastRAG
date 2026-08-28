@@ -129,3 +129,9 @@ Acceptance criteria for any provider:
    abstention rate.
 7. Promote only after the new provider meets retrieval-independent generation quality and
    latency targets.
+
+## Per-request LLM override (development)
+
+When query overrides are enabled, a single query may pass `overrides.llm` with `base_url`,
+`api_key`, `model`, and `max_tokens`. The server must already have a default LLM base URL
+configured. API keys in traces are redacted. See [query-trace.md](query-trace.md).

@@ -57,7 +57,8 @@ This produces four calibrated values, not one:
 - `reranker_threshold` - the abstention gate, and CRAG's lower band.
 - `crag_confident_threshold` - CRAG's upper band; above it, generate without correction.
 - `cache_distance_threshold` - semantic cache cosine distance.
-- `offtopic_threshold` - with the corpus centroid, the off-topic guardrail.
+- `offtopic_threshold` - with the corpus centroid, the off-topic guardrail (cosine similarity,
+  range **−1 to 1**; per-request override accepts the same range).
 
 Recalibrate when you change dense embeddings, reranker, chunking, prompt, provider model,
 profile, or corpus shape. Switching profile changes the embedding and reranking providers,
