@@ -109,6 +109,31 @@ export interface QueryTrace {
   context_top_k: number;
   abstention_reason: string | null;
   generation: GenerationTrace | null;
+  overrides_applied?: Record<string, unknown> | null;
+}
+
+export interface LlmOverrides {
+  base_url?: string;
+  api_key?: string;
+  model?: string;
+  max_tokens?: number;
+}
+
+export interface QueryOverrides {
+  skip_cache?: boolean;
+  crag_enabled?: boolean | null;
+  candidate_k?: number;
+  context_top_k?: number;
+  reranker_threshold?: number;
+  crag_confident_threshold?: number;
+  offtopic_threshold?: number;
+  llm?: LlmOverrides;
+}
+
+export interface StrategiesResponse {
+  available: string[];
+  indexed: string[];
+  default: string;
 }
 
 export interface IngestResult {
@@ -123,6 +148,7 @@ export interface QueryOptions {
   language?: string;
   documentId?: string;
   documentIds?: string[];
+  overrides?: QueryOverrides;
 }
 
 export interface QueryResponse {

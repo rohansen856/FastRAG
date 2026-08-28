@@ -44,7 +44,7 @@ function pathTaken(stages: PipelineStageTrace[], cacheStatus: CacheStatus): Set<
     if (node.id === "exact_cache" && cacheStatus === "exact") break;
     if (node.id === "semantic_cache" && cacheStatus === "semantic") break;
 
-    if (stage.status === "skipped") break;
+    if (stage.status === "skipped" && stage.detail !== "overridden") break;
   }
 
   return active;

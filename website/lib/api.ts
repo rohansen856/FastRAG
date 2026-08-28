@@ -1,4 +1,11 @@
-import type { IngestResult, QueryOptions, QueryResponse, Transcript } from "./types";
+import type {
+  IngestResult,
+  QueryOptions,
+  QueryOverrides,
+  QueryResponse,
+  StrategiesResponse,
+  Transcript,
+} from "./types";
 import { validateUploadFile } from "./upload";
 
 export interface StreamHandlers {
@@ -110,6 +117,31 @@ export async function deleteDocument(documentId: string): Promise<void> {
   }
 }
 
+function cleanOverrides(overrides?: QueryOverrides): QueryOverrides | null {
+  if (!overrides) return null;
+  const payload: QueryOverrides = {};
+  if (overrides.skip_cache) payload.skip_cache = true;
+  if (overrides.crag_enabled !== undefined && overrides.crag_enabled !== null) {
+    payload.crag_enabled = overrides.crag_enabled;
+  }
+  if (overrides.candidate_k != null) payload.candidate_k = overrides.candidate_k;
+  if (overrides.context_top_k != null) payload.context_top_k = overrides.context_top_k;
+  if (overrides.reranker_threshold != null) payload.reranker_threshold = overrides.reranker_threshold;
+  if (overrides.crag_confident_threshold != null) {
+    payload.crag_confident_threshold = overrides.crag_confident_threshold;
+  }
+  if (overrides.offtopic_threshold != null) payload.offtopic_threshold = overrides.offtopic_threshold;
+  if (overrides.llm) {
+    const llm: QueryOverrides["llm"] = {};
+    if (overrides.llm.base_url?.trim()) llm.base_url = overrides.llm.base_url.trim();
+    if (overrides.llm.api_key?.trim()) llm.api_key = overrides.llm.api_key.trim();
+    if (overrides.llm.model?.trim()) llm.model = overrides.llm.model.trim();
+    if (overrides.llm.max_tokens != null) llm.max_tokens = overrides.llm.max_tokens;
+    if (Object.keys(llm).length) payload.llm = llm;
+  }
+  return Object.keys(payload).length ? payload : null;
+}
+
 function queryPayload(query: string, options: QueryOptions) {
   const documentIds =
     options.documentIds?.length
@@ -117,13 +149,23 @@ function queryPayload(query: string, options: QueryOptions) {
       : options.documentId
         ? [options.documentId]
         : null;
+  const overrides = cleanOverrides(options.overrides);
   return JSON.stringify({
     query,
     strategy: options.strategy ?? null,
     language: options.language ?? null,
     document_id: documentIds?.length === 1 ? documentIds[0] : null,
     document_ids: documentIds && documentIds.length > 1 ? documentIds : null,
+    overrides,
   });
+}
+
+export async function fetchStrategies(): Promise<StrategiesResponse> {
+  const response = await fetch("/api/rag/v1/strategies");
+  if (!response.ok) {
+    throw new Error(await response.text().catch(() => response.statusText));
+  }
+  return (await response.json()) as StrategiesResponse;
 }
 
 export async function textQuery(

@@ -79,6 +79,12 @@ export function ModelsPanel({ trace }: { trace: QueryTrace }) {
       <Row label="Rerank threshold" value={trace.reranker_threshold?.toFixed(3)} />
       <Row label="CRAG confident" value={trace.crag_confident_threshold?.toFixed(3)} />
       <Row label="Off-topic threshold" value={trace.offtopic_threshold?.toFixed(3)} />
+      {trace.overrides_applied && Object.keys(trace.overrides_applied).length > 0 && (
+        <Row
+          label="Overrides"
+          value={JSON.stringify(trace.overrides_applied)}
+        />
+      )}
     </dl>
   );
 }
