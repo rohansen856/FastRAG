@@ -35,6 +35,7 @@ from .observability import observation, trace_raw_content
 from .ports import AnswerCache, AnswerGenerator, Embedder, Reranker, Retriever
 from .query_overrides import EffectiveQueryConfig, resolve_effective_config
 from .query_trace import QueryTraceBuilder
+from .text import normalize_language
 
 NO_ANSWER_TEXT = "I don't know based on the available sources."
 
@@ -155,6 +156,9 @@ class QueryPipeline:
         transcript: Transcript | None = None,
         overrides: QueryOverrides | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
+        # The UIs send BCP-47 (`hi-IN`); chunk payloads hold ISO 639-1 (`hi`) and
+        # are matched exactly, so an un-normalised tag filters the corpus to zero.
+        language = normalize_language(language)
         scoped_documents = resolve_document_scope(
             document_id=document_id, document_ids=document_ids
         )

@@ -66,3 +66,18 @@ def normalize_text(text: str) -> str:
     silently miss the exact cache.
     """
     return " ".join(unicodedata.normalize("NFC", text).split())
+
+
+def normalize_language(code: str | None) -> str | None:
+    """Reduce a language tag to the ISO 639-1 code used in chunk payloads.
+
+    The UIs offer BCP-47 regional tags (`hi-IN`) because that is what Sarvam's
+    speech models want, but the Qdrant `language` payload holds bare ISO 639-1
+    (`hi`) and is matched exactly. Without this, selecting any language in either
+    frontend filters the corpus down to zero points and every query returns
+    "no answer".
+    """
+    if code is None:
+        return None
+    primary = code.strip().casefold().replace("_", "-").split("-")[0]
+    return primary or None
