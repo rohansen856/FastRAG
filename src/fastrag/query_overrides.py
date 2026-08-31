@@ -53,7 +53,9 @@ def resolve_effective_config(
 
     effective_calibration = calibration
     if overrides:
-        fields: dict[str, float] = {}
+        # `dataclasses.replace` is typed against the full Calibration signature,
+        # so a narrowly-typed mapping cannot describe this partial update.
+        fields: dict[str, Any] = {}
         if overrides.reranker_threshold is not None:
             fields["reranker_threshold"] = overrides.reranker_threshold
         if overrides.crag_confident_threshold is not None:
