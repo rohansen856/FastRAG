@@ -17,6 +17,8 @@ from .guardrails import corpus_centroid
 from .ports import Embedder
 from .registry import IndexManifest, PostgresIndexRegistry
 
+STAGED_CENTROID_PATH = CENTROID_PATH.with_suffix(".staged.json")
+
 
 class IndexBuildError(RuntimeError):
     pass
@@ -63,6 +65,20 @@ class IndexBuilder:
             for name in self._strategy_names
         ]
 
+    async def activate(self, manifest: IndexManifest) -> IndexManifest:
+        """Flip the alias onto an already-validated collection.
+
+        Split out from `build_from_chunks` so a new corpus can be indexed and
+        calibrated against before it starts serving traffic. Every threshold in
+        `config/calibration.json` is a quantile of a score distribution measured
+        on one corpus, so activating first would serve the new content through
+        the old corpus's gates.
+        """
+        await asyncio.to_thread(self._activate_alias, manifest.collection_name)
+        await self._registry.activate(manifest.index_version)
+        self._promote_centroid()
+        return replace(manifest, state="active")
+
     async def rebuild(self, paths: Sequence[Path], *, version: str | None = None) -> IndexManifest:
         files = sorted(path.resolve() for path in paths if path.is_file())
         if not files:
@@ -80,12 +96,13 @@ class IndexBuilder:
         *,
         content_version: str,
         version: str | None = None,
+        activate: bool = True,
     ) -> IndexManifest:
         """Index pre-chunked payloads.
 
-        Split out from `rebuild` so the corpus script can stream MS MARCO
-        passages in without first writing them to disk, which the Render free
-        tier's ephemeral filesystem could not hold anyway.
+        Split out from `rebuild` so a corpus script can stream chunks in without
+        first writing them to disk, which the Render free tier's ephemeral
+        filesystem could not hold anyway.
         """
         if not chunks:
             raise IndexBuildError("no chunks to index")
@@ -110,11 +127,17 @@ class IndexBuilder:
             vectors = await self._upload(collection, chunks)
             await asyncio.to_thread(self._validate_collection, collection, len(chunks))
             await self._registry.mark_validated(index_version)
-            await asyncio.to_thread(self._activate_alias, collection)
-            await self._registry.activate(index_version)
-            self._write_centroid(vectors)
+            # Always staged first: a live process rereads the centroid file on
+            # restart, and picking up a new centroid against the old calibration
+            # marks every query off-topic.
+            self._write_centroid(vectors, path=STAGED_CENTROID_PATH)
             if vectors:
                 await self._registry.store_centroid(index_version, corpus_centroid(vectors))
+            if not activate:
+                return replace(manifest, state="validated")
+            await asyncio.to_thread(self._activate_alias, collection)
+            await self._registry.activate(index_version)
+            self._promote_centroid()
         except Exception:
             await self._registry.mark_failed(index_version)
             raise
@@ -221,13 +244,21 @@ class IndexBuilder:
         return all_vectors
 
     @staticmethod
-    def _write_centroid(vectors: Sequence[Sequence[float]], path: Path = CENTROID_PATH) -> None:
+    def _write_centroid(vectors: Sequence[Sequence[float]], *, path: Path = CENTROID_PATH) -> None:
         """Persist the corpus centroid used by the off-topic guardrail."""
         if not vectors:
             return
         centroid = corpus_centroid(vectors)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({"centroid": centroid, "threshold": None}))
+
+    @staticmethod
+    def _promote_centroid(
+        staged: Path = STAGED_CENTROID_PATH, path: Path = CENTROID_PATH
+    ) -> None:
+        """Move the staged centroid into place, at the moment the alias flips."""
+        if staged.is_file():
+            staged.replace(path)
 
     def _sparse_documents(self, texts: list[str]) -> list[Any]:
         return list(self._sparse.passage_embed(texts))

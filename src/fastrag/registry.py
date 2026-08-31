@@ -120,6 +120,26 @@ class PostgresIndexRegistry:
             if cursor.rowcount != 1:
                 raise KeyError(index_version)
 
+    async def manifest(self, index_version: str) -> IndexManifest | None:
+        """Reload one manifest by version, for activating a deferred build."""
+        row = await asyncio.to_thread(self._manifest_sync, index_version)
+        if row is None:
+            return None
+        payload = row["manifest"]
+        stored = json.loads(payload) if isinstance(payload, str) else dict(payload)
+        stored["chunk_strategies"] = tuple(stored.get("chunk_strategies") or ())
+        stored["languages"] = tuple(stored.get("languages") or ())
+        stored["state"] = str(row["state"])
+        return IndexManifest(**stored)
+
+    def _manifest_sync(self, index_version: str) -> dict[str, Any] | None:
+        with psycopg.connect(self._database_url, row_factory=dict_row) as connection:
+            row = connection.execute(
+                "SELECT * FROM index_manifests WHERE index_version=%s",
+                (index_version,),
+            ).fetchone()
+            return dict(row) if row else None
+
     async def active(self) -> dict[str, Any] | None:
         return await asyncio.to_thread(self._active_sync)
 
