@@ -1,6 +1,7 @@
+from dataclasses import replace
+
 import pytest
 from conftest import FakeRetriever, MemoryCache, make_pipeline
-from dataclasses import replace
 
 from fastrag.domain import CachedAnswer, CacheStatus, Outcome
 from fastrag.pipeline import NO_ANSWER_TEXT, PipelineUnavailable

@@ -1,6 +1,7 @@
+from dataclasses import replace
+
 import pytest
 
-from dataclasses import replace
 from fastrag.citations import CitationValidationError, SentenceCitationBuffer
 
 

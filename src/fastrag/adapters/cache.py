@@ -9,7 +9,8 @@ from collections.abc import Sequence
 from typing import Any
 
 from redis.asyncio import Redis
-from redis.exceptions import ResponseError, TimeoutError as RedisTimeoutError
+from redis.exceptions import ResponseError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from ..domain import CachedAnswer, CacheStatus, Citation, Outcome
 
