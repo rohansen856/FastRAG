@@ -1,7 +1,8 @@
 """Chunking strategies.
 
-Different corpora reward different splits, and MS MARCO passages are short and
-self-contained while ingested PDFs are long and structured. Rather than pick one,
+Different corpora reward different splits: a documentation section is prose, a
+Python function is not, and an ingested PDF is long and structured. Rather than
+pick one,
 every strategy writes a `strategy` field into the Qdrant payload so several can
 live in one collection and be compared at query time with a filter.
 
@@ -23,6 +24,11 @@ from .domain import Chunk
 from .text import detect_script_language, normalize_text, split_sentences
 
 CONTEXT_TEXT_KEY = "context_text"
+# Verbatim chunk text, kept alongside the normalised `text`. `normalize_text`
+# collapses every run of whitespace, which is right for embedding and cache
+# stability but destroys the indentation of source-code chunks. Citations render
+# from this instead so quoted code stays readable.
+RAW_TEXT_KEY = "raw_text"
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +65,16 @@ class ChunkingStrategy(Protocol):
 def context_of(chunk: Chunk) -> str:
     """Text handed to the generator, which may be wider than the indexed span."""
     value = chunk.metadata.get(CONTEXT_TEXT_KEY)
+    return str(value) if value else chunk.text
+
+
+def display_text_of(chunk: Chunk) -> str:
+    """Verbatim text for display, falling back to the normalised span.
+
+    Chunks indexed before `raw_text` existed have no verbatim copy, so this
+    degrades to `text` rather than failing.
+    """
+    value = chunk.metadata.get(RAW_TEXT_KEY)
     return str(value) if value else chunk.text
 
 
@@ -243,9 +259,10 @@ class HierarchicalChunking:
 class MetadataAwareChunking:
     """Prepends a provenance header to the embedded text.
 
-    A bare MS MARCO passage often lacks the entity it is about. Embedding
-    "title | language | source" alongside the passage restores that signal, while
-    the citation excerpt still shows the untouched passage.
+    A chunk from the middle of a file often lacks the entity it is about: a
+    function body rarely repeats its own module name. Embedding the title and
+    section alongside it restores that signal, while the citation excerpt still
+    shows the untouched text.
     """
 
     name = "metadata_aware"
@@ -314,11 +331,19 @@ async def chunk_document(
     """Run every strategy over one document and emit Qdrant-ready payloads."""
     payloads: list[dict[str, Any]] = []
     language = document.language or detect_script_language(document.text)
+    # Every strategy joins its pieces with spaces, so a chunk covering a whole
+    # document is the one case where the original layout can be recovered - which
+    # is most of them for a corpus split per section or per function.
+    document_text = document.text.strip()
+    document_normalized = normalize_text(document_text)
     for strategy in strategies:
         for index, chunk in enumerate(await strategy.split(document)):
             text = normalize_text(chunk.text)
             if not text:
                 continue
+            raw_text = (
+                document_text if text == document_normalized else chunk.text.strip()
+            )
             chunk_id = str(
                 uuid.uuid5(uuid.NAMESPACE_URL, f"{document.document_id}:{strategy.name}:{text}")
             )
@@ -333,6 +358,8 @@ async def chunk_document(
                 "language": language,
                 "position": index,
             }
+            if raw_text != text:
+                payload[RAW_TEXT_KEY] = raw_text
             if chunk.context_text and chunk.context_text != chunk.text:
                 payload[CONTEXT_TEXT_KEY] = normalize_text(chunk.context_text)
             payload.update(chunk.metadata)

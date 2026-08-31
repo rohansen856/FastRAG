@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .chunking import display_text_of
 from .domain import (
     CacheStatus,
     Chunk,
@@ -50,7 +51,7 @@ def chunk_traces_from_chunks(chunks: list[Chunk], *, start_rank: int = 1) -> lis
                 document_id=chunk.document_id,
                 title=chunk.title,
                 score=float(chunk.score),
-                excerpt=_excerpt(chunk.text),
+                excerpt=_excerpt(display_text_of(chunk)),
             )
         )
     return traces
@@ -67,7 +68,7 @@ def chunk_traces_from_ranked(ranked: list[RankedChunk], *, start_rank: int = 1) 
                 document_id=chunk.document_id,
                 title=chunk.title,
                 score=float(item.score),
-                excerpt=_excerpt(chunk.text),
+                excerpt=_excerpt(display_text_of(chunk)),
                 refined=bool(chunk.metadata.get("refined")),
             )
         )
@@ -221,7 +222,7 @@ class QueryTraceBuilder:
                     document_id=chunk.document_id,
                     title=chunk.title,
                     score=float(score_by_id.get(chunk.chunk_id, chunk.score)),
-                    excerpt=_excerpt(chunk.text),
+                    excerpt=_excerpt(display_text_of(chunk)),
                     refined=bool(chunk.metadata.get("refined")),
                 )
             )

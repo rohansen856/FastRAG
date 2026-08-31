@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+from .chunking import display_text_of
 from .domain import Chunk, Citation
 from .text import SENTENCE_TERMINATORS
 
@@ -145,7 +146,9 @@ class SentenceCitationBuffer:
 
     @staticmethod
     def _citation(chunk: Chunk, number: int) -> Citation:
-        excerpt = " ".join(chunk.text.split())[:320]
+        # Verbatim where available, so a quoted code chunk keeps its line breaks
+        # and indentation instead of arriving as one collapsed line.
+        excerpt = display_text_of(chunk)[:320]
         return Citation(
             number=number,
             document_id=chunk.document_id,
