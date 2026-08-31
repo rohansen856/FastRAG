@@ -53,10 +53,16 @@ def check_trace(trace: dict, overrides: dict, *, expect_crag_skipped: bool) -> N
     for key in ("skip_cache", "crag_enabled", "candidate_k", "context_top_k"):
         if key in overrides:
             if applied.get(key) != overrides[key]:
-                raise AssertionError(f"overrides_applied.{key}: {applied.get(key)!r} != {overrides[key]!r}")
+                raise AssertionError(
+                    f"overrides_applied.{key}: {applied.get(key)!r} != {overrides[key]!r}"
+                )
 
     if "reranker_threshold" in overrides:
-        assert_close(trace.get("reranker_threshold"), overrides["reranker_threshold"], "trace.reranker_threshold")
+        assert_close(
+            trace.get("reranker_threshold"),
+            overrides["reranker_threshold"],
+            "trace.reranker_threshold",
+        )
     if "crag_confident_threshold" in overrides:
         assert_close(
             trace.get("crag_confident_threshold"),
@@ -64,7 +70,11 @@ def check_trace(trace: dict, overrides: dict, *, expect_crag_skipped: bool) -> N
             "trace.crag_confident_threshold",
         )
     if "offtopic_threshold" in overrides:
-        assert_close(trace.get("offtopic_threshold"), overrides["offtopic_threshold"], "trace.offtopic_threshold")
+        assert_close(
+            trace.get("offtopic_threshold"),
+            overrides["offtopic_threshold"],
+            "trace.offtopic_threshold",
+        )
 
     if overrides.get("skip_cache"):
         for stage_id in ("exact_cache", "semantic_cache"):
@@ -75,7 +85,12 @@ def check_trace(trace: dict, overrides: dict, *, expect_crag_skipped: bool) -> N
     crag = next(s for s in trace["stages"] if s["id"] == "crag")
     if expect_crag_skipped and crag["status"] != "skipped":
         raise AssertionError(f"CRAG should be skipped, got {crag['status']}")
-    if not expect_crag_skipped and crag["status"] == "skipped" and overrides.get("crag_enabled") is not False:
+    skipped_unexpectedly = (
+        not expect_crag_skipped
+        and crag["status"] == "skipped"
+        and overrides.get("crag_enabled") is not False
+    )
+    if skipped_unexpectedly:
         raise AssertionError("CRAG unexpectedly skipped")
 
     if "candidate_k" in overrides:
@@ -97,7 +112,9 @@ def check_trace(trace: dict, overrides: dict, *, expect_crag_skipped: bool) -> N
             )
 
 
-def run_case(name: str, url: str, payload: dict, overrides: dict, *, expect_crag_skipped: bool) -> None:
+def run_case(
+    name: str, url: str, payload: dict, overrides: dict, *, expect_crag_skipped: bool
+) -> None:
     print(f"\n=== {name} ===")
     response = post_stream(url, payload)
     trace = response.get("trace")
@@ -115,7 +132,11 @@ def main() -> int:
         {"query": QUESTION, "strategy": "sentence"},
     )
     base_trace = baseline["trace"]
-    print("Baseline trace thresholds:", base_trace.get("reranker_threshold"), base_trace.get("offtopic_threshold"))
+    print(
+        "Baseline trace thresholds:",
+        base_trace.get("reranker_threshold"),
+        base_trace.get("offtopic_threshold"),
+    )
 
     custom_overrides = {
         "skip_cache": True,
@@ -134,7 +155,13 @@ def main() -> int:
         "language": "en-IN",
         "overrides": custom_overrides,
     }
-    run_case("API all overrides", f"{API}/v1/query/stream", api_payload, custom_overrides, expect_crag_skipped=True)
+    run_case(
+        "API all overrides",
+        f"{API}/v1/query/stream",
+        api_payload,
+        custom_overrides,
+        expect_crag_skipped=True,
+    )
 
     # Website proxy (same token, server-side)
     try:
@@ -148,7 +175,10 @@ def main() -> int:
     except urllib.error.HTTPError as exc:
         body = exc.read().decode() if exc.fp else ""
         print(f"\nWebsite proxy failed ({exc.code}): {body[:300]}", file=sys.stderr)
-        print("  (Ensure website dev server uses FASTRAG_API_URL=http://localhost:8001)", file=sys.stderr)
+        print(
+            "  (Ensure website dev server uses FASTRAG_API_URL=http://localhost:8001)",
+            file=sys.stderr,
+        )
         return 1
 
     # No-change re-run: empty overrides object should not 422
