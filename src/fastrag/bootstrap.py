@@ -9,7 +9,7 @@ from typing import Any
 from . import observability
 from .adapters.cache import RedisAnswerCache
 from .adapters.generation import FallbackGenerator, OpenAICompatibleGenerator
-from .calibration import Calibration
+from .calibration import Calibration, CalibrationError
 from .config import Settings
 from .crag import CorrectiveRetrieval
 from .fingerprint import EmbeddingFingerprint
@@ -203,6 +203,10 @@ async def build_pipeline(settings: Settings) -> tuple[QueryPipeline, RedisAnswer
     registry = PostgresIndexRegistry(settings.database_url)
     await registry.initialize()
     await registry.assert_embedding_fingerprint(embedding.digest)
+    # None before the first ingest; a connection failure still raises.
+    active_index = await registry.active()
+    if active_index is not None:
+        calibration.validate_corpus(str(active_index["content_version"]))
 
     cache = RedisAnswerCache(
         settings.redis_url,
@@ -226,6 +230,14 @@ async def build_pipeline(settings: Settings) -> tuple[QueryPipeline, RedisAnswer
     centroid, centroid_threshold = load_corpus_centroid()
     if centroid is None:
         centroid = await asyncio.to_thread(registry.centroid_from_active)
+    if centroid and len(centroid) != settings.active_dense_dimension:
+        # `Guardrails._cosine` returns 0.0 on a length mismatch rather than
+        # raising, which would silently mark every query off-topic.
+        raise CalibrationError(
+            f"corpus centroid has {len(centroid)} dimensions but the active "
+            f"embedding model produces {settings.active_dense_dimension}; "
+            "re-run ingest so the centroid matches the model"
+        )
     guardrails = Guardrails(
         enabled=settings.guardrails_enabled,
         languages=settings.guardrail_language_set,

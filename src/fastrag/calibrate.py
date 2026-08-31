@@ -16,6 +16,7 @@ from .bootstrap import (
 from .config import Settings
 from .evaluation import GoldenItem
 from .model_artifacts import verify_configured_models
+from .registry import PostgresIndexRegistry
 
 
 def choose_gate(scores: list[tuple[float, bool]]) -> tuple[float, float, float]:
@@ -143,6 +144,13 @@ async def run(args: argparse.Namespace) -> None:
         similarities = [cosine_similarity(vector, centroid) for vector in answerable_vectors]
         offtopic_threshold = choose_offtopic_threshold(similarities)
 
+    # Pin the corpus the thresholds were fitted against, so a later re-index
+    # under unchanged models fails loudly at startup instead of serving a new
+    # corpus through the old gates.
+    registry = PostgresIndexRegistry(settings.database_url)
+    await registry.initialize()
+    content_version = await registry.active_content_version()
+
     embedding = embedding_fingerprint(settings)
     artifact = {
         "reranker_threshold": threshold,
@@ -157,6 +165,7 @@ async def run(args: argparse.Namespace) -> None:
         "sample_count": len(golden),
         "cache_distance_threshold": cache_threshold,
         "offtopic_threshold": offtopic_threshold,
+        "content_version": content_version,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(artifact, indent=2))

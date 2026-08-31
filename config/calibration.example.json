@@ -6,5 +6,6 @@
   "embedding_fingerprint": "generated-by-python-m-fastrag.calibrate",
   "false_answer_rate": 0.05,
   "sample_count": 30,
-  "cache_distance_threshold": 0.1
+  "cache_distance_threshold": 0.1,
+  "content_version": "generated-by-python-m-fastrag.calibrate"
 }

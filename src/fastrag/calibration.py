@@ -21,6 +21,11 @@ class Calibration:
     # scores between `reranker_threshold` and this are ambiguous and get refined.
     crag_confident_threshold: float | None = None
     offtopic_threshold: float | None = None
+    # Corpus identity the thresholds were fitted against. Optional so artifacts
+    # produced before this field existed still load, but once present it is
+    # checked: the fingerprints below only pin the models, and a corpus swap
+    # under unchanged models would otherwise load cleanly and be wrong.
+    content_version: str | None = None
 
     @property
     def crag_upper(self) -> float:
@@ -53,6 +58,11 @@ class Calibration:
                 offtopic_threshold=(
                     float(payload["offtopic_threshold"])
                     if payload.get("offtopic_threshold") is not None
+                    else None
+                ),
+                content_version=(
+                    str(payload["content_version"])
+                    if payload.get("content_version") is not None
                     else None
                 ),
             )
@@ -93,3 +103,21 @@ class Calibration:
             raise CalibrationError("reranker fingerprint does not match calibration")
         if self.embedding_fingerprint != embedding_fingerprint:
             raise CalibrationError("embedding fingerprint does not match calibration")
+
+    def validate_corpus(self, content_version: str) -> None:
+        """Reject thresholds fitted against a different corpus.
+
+        Every threshold in this artifact is a quantile of a score distribution
+        measured on one corpus. Re-indexing different content under unchanged
+        models leaves the fingerprints matching, so without this the stale
+        artifact loads silently and the abstention, CRAG and off-topic gates are
+        all wrong in an unknown direction.
+        """
+        if self.content_version is None:
+            return
+        if self.content_version != content_version:
+            raise CalibrationError(
+                f"calibration was fitted against corpus {self.content_version!r} "
+                f"but the active index is {content_version!r}; recalibrate with "
+                "`python -m fastrag.calibrate`"
+            )
