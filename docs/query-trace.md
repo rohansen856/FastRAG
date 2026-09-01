@@ -31,7 +31,7 @@ Only fields you set are applied; omitted fields keep deployment defaults.
 
 ```json
 {
-  "query": "What is the refund period?",
+  "query": "How does CRAG decide to rewrite a query?",
   "strategy": "sentence",
   "language": "en",
   "overrides": {

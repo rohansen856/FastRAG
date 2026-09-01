@@ -140,7 +140,7 @@ events named `meta`, `answer_chunk`, `final`, and `error`.
 ```bash
 curl -fsS -H "Authorization: Bearer $FASTRAG_QUERY_API_KEY" \
   -H 'Content-Type: application/json' \
-  -d '{"query":"What is the refund period?"}' \
+  -d '{"query":"How does CRAG decide to rewrite a query?"}' \
   https://localhost/v1/query
 ```
 
@@ -192,10 +192,13 @@ On free hosted tiers, deploy the API on Vercel or Render and either frontend on 
 
 ## Evaluation gate
 
-`eval/golden.jsonl` is intentionally not fabricated by this scaffold. Before a release,
-create at least 200 reviewed, version-controlled records using the schema demonstrated by
-`eval/golden.example.jsonl`; at least 25% must be unanswerable. Keep calibration records
-separate from regression records.
+`eval/golden.jsonl` is never hand-written and never committed. Both ingest scripts derive it:
+MSMARCO-XI from its own `is_selected` labels, the self-corpus by having the generator write
+questions while the chunker assigns `relevant_chunk_ids`. The schema is demonstrated by
+`eval/golden.example.jsonl`; at least 200 records with at least 25% unanswerable, and the
+calibration split is held out by source document rather than sliced off the top. These are
+derived labels, not reviewed ones - read [self-corpus.md](docs/self-corpus.md) before gating
+a release on them.
 
 Run the complete gate against the production configuration:
 

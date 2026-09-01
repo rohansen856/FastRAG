@@ -145,7 +145,7 @@ uv run python scripts/ingest-msmarco.py --rows-per-language 250 --max-chunks 900
 curl -fsS \
   -H "Authorization: Bearer $FASTRAG_QUERY_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"query":"What is the refund period?"}' \
+  -d '{"query":"How does CRAG decide to rewrite a query?"}' \
   http://localhost/v1/query
 ```
 
@@ -155,12 +155,13 @@ For streaming:
 curl -N \
   -H "Authorization: Bearer $FASTRAG_QUERY_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"query":"What is the refund period?"}' \
+  -d '{"query":"How does CRAG decide to rewrite a query?"}' \
   http://localhost/v1/query/stream
 ```
 
 Add `"strategy"` to compare chunking strategies, and `"language"` to filter to one language.
-`GET /v1/strategies` lists indexed strategies.
+`GET /v1/strategies` lists indexed strategies. Language accepts either form - `bn` or `bn-IN`
+- and is reduced to the ISO 639-1 code the chunk payloads carry.
 
 After a query, open the **website** trace page at http://localhost:3000/query (run a question
 on the home page first; traces live in browser `sessionStorage` only). Use the Experiment
