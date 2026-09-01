@@ -40,6 +40,12 @@ export const DOC_SECTIONS: { label: string; pages: DocPage[] }[] = [
         file: "architecture.md",
         description: "Request path, components, and data flow.",
       },
+      {
+        slug: "self-corpus",
+        title: "The self-corpus",
+        file: "self-corpus.md",
+        description: "Indexing FastRAG's own code and docs, and deriving its golden set.",
+      },
     ],
   },
   {
