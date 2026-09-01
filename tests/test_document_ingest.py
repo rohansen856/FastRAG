@@ -83,7 +83,7 @@ async def test_corpus_retrieval_excludes_session_uploads(chunk) -> None:
 
 @pytest.mark.asyncio
 async def test_scoped_query_skips_vector_guardrail(chunk) -> None:
-    """User uploads should not be rejected by the MSMARCO corpus centroid."""
+    """User uploads should not be rejected by the corpus centroid."""
     calibration = Calibration(
         reranker_threshold=0.5,
         reranker_fingerprint="reranker",
@@ -124,7 +124,7 @@ async def test_scoped_query_skips_vector_guardrail(chunk) -> None:
 
 @pytest.mark.asyncio
 async def test_scoped_query_answers_despite_low_rerank(chunk) -> None:
-    """Attached documents should answer even when rerank scores miss MSMARCO calibration."""
+    """Attached documents should answer even when rerank scores miss corpus calibration."""
     calibration = Calibration(
         reranker_threshold=0.95,
         crag_confident_threshold=0.99,
