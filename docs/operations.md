@@ -57,6 +57,14 @@ notices is exactly the situation this rule exists to prevent.
 Changing embedding provider changes the embedding fingerprint and requires a re-index and a
 recalibration. Startup validates this rather than letting it degrade quietly.
 
+Changing the *corpus* is the same kind of release change. The fingerprints only pin the
+models, so re-indexing different content leaves them matching while every calibrated
+threshold is now fitted against a corpus that is gone. Calibration records the
+`content_version` it was fitted against and startup rejects a mismatch, so this fails on
+`/health/ready` instead of silently mis-gating. When re-ingesting against a deployment that
+is already serving, build with `--no-activate`, calibrate against the shadow collection, then
+flip the alias - see [self-corpus.md](self-corpus.md).
+
 ## Langfuse
 
 Tracing defaults to Langfuse Cloud's free tier. Set the project credentials in the runtime

@@ -24,8 +24,9 @@ tiers. Both are benchmarked and both sets of numbers are published - see
 [latency.md](latency.md) for why conflating them would be dishonest.
 
 The `local` profile is English-only on the embedding side, because `bge-base-en-v1.5` is an
-English model. Querying the Indic corpus therefore requires the `cloud` profile or a
-multilingual local model.
+English model. Both corpora carry Indic text - MSMARCO-XI natively, the self-corpus through
+machine-translated docs - so querying either in Hindi, Bengali, Tamil, Telugu or Marathi
+requires the `cloud` profile or a multilingual local model.
 
 ## Free tiers, and what each one costs you
 

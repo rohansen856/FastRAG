@@ -1,10 +1,11 @@
 # Chunking strategies
 
-There is no chunk size that is right for every corpus. MS MARCO passages are short and
-self-contained; an ingested policy PDF is long and structured. Rather than pick one and
-defend it, [`src/fastrag/chunking.py`](../src/fastrag/chunking.py) implements six strategies
-and writes a `strategy` field into every Qdrant payload, so all six can live in one
-collection and be compared at query time with a filter.
+There is no chunk size that is right for every corpus. A documentation section is prose that
+rewards sentence packing; a Python function is neither, and an ingested policy PDF is long and
+structured. Rather than pick one and defend it,
+[`src/fastrag/chunking.py`](../src/fastrag/chunking.py) implements six strategies and writes a
+`strategy` field into every Qdrant payload, so all six can live in one collection and be
+compared at query time with a filter.
 
 Pass `strategy` on `/v1/query` to pick one; omit it to search across all indexed strategies.
 `GET /v1/strategies` reports which are available and which are actually indexed.
@@ -30,10 +31,11 @@ expensive one at ingest time: it embeds every sentence.
 **`hierarchical`** - small children are retrieved, large parents are generated from. Same
 idea as `sentence_window` at a coarser granularity.
 
-**`metadata_aware`** - prepends `title | language | query` as a header to the embedded text.
-A bare MS MARCO passage frequently never names the entity it is about, and this restores
-that signal. The citation excerpt still shows the untouched passage, so the header never
-leaks into what the user reads.
+**`metadata_aware`** - prepends `title | language | section | category` as a header to the
+embedded text (whichever of `section`, `query` and `category` the document carries).
+A chunk from the middle of a file frequently never names what it is about - a function body
+rarely repeats its own module - and this restores that signal. The citation excerpt still
+shows the untouched text, so the header never leaks into what the user reads.
 
 ## Indexed text versus generated text
 
@@ -61,9 +63,9 @@ measure on your corpus, do not reason about it from first principles.
 
 Indexing every strategy multiplies the vector count by roughly the number of strategies -
 more for `sentence_window`, which produces one chunk per sentence. On Qdrant's 1 GB free
-tier this is the binding constraint, which is why `scripts/ingest-msmarco.py` takes a
-`--max-chunks` cap. In production you index the one strategy you chose, set
-`FASTRAG_CHUNK_STRATEGIES` to it alone, and the multiplier disappears.
+tier this is the binding constraint, which is why both `scripts/ingest-msmarco.py` and
+`scripts/ingest-self.py` take a `--max-chunks` cap. In production you index the one strategy
+you chose, set `FASTRAG_CHUNK_STRATEGIES` to it alone, and the multiplier disappears.
 
 `FASTRAG_CHUNK_SIZE` and `FASTRAG_CHUNK_OVERLAP` apply to the strategies that take a budget
 (`fixed`, `sentence`, `semantic`, `metadata_aware`).
@@ -76,3 +78,14 @@ An English-only `[.!?]` splitter returns Hindi, Bengali, and Marathi documents a
 enormous sentence, which silently defeats every sentence-based strategy and breaks
 sentence-level citation streaming. The same regex is used by the citation validator for
 exactly that reason.
+
+## Chunk text versus displayed text
+
+Every strategy joins its pieces with spaces, and `normalize_text` then collapses whitespace.
+That is right for embedding and cache stability and useless for reading source code, so
+chunks also carry a `raw_text` payload field holding the verbatim text; citations and trace
+excerpts render from that. It is written only when it differs from `text`, and `chunk_id`
+hashes the normalised text, so the field changed no chunk ids. A chunk covering a whole
+document recovers its exact original layout; one that splits a long section does not, and its
+line-anchored `source_uri` is how you read the original. See
+[self-corpus.md](self-corpus.md).

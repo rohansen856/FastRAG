@@ -33,7 +33,7 @@ Only fields you set are applied; omitted fields keep deployment defaults.
 {
   "query": "What is the refund period?",
   "strategy": "sentence",
-  "language": "en-IN",
+  "language": "en",
   "overrides": {
     "skip_cache": true,
     "crag_enabled": false,
@@ -64,7 +64,9 @@ Only fields you set are applied; omitted fields keep deployment defaults.
 | `llm.*` | Request-scoped generator endpoint/model/tokens. Requires a configured base URL on the server for override routing to activate. |
 
 `strategy`, `language`, and `document_ids` stay top-level query fields (not inside
-`overrides`).
+`overrides`). `language` is reduced to its ISO 639-1 primary subtag before it reaches Qdrant,
+so `hi-IN` and `hi` both match the `hi` chunks; the UIs send the regional form because that is
+what Sarvam's speech models want.
 
 ### Gating
 
