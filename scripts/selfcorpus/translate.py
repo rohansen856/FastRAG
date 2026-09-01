@@ -1,0 +1,207 @@
+"""Machine-translate the prose docs so the corpus stays genuinely multilingual.
+
+The `language` payload filter, the six-language golden split and
+`FASTRAG_GUARDRAIL_LANGUAGES` all assume chunks actually exist in each language.
+An English-only self-corpus would leave `language=hi` matching zero points, so
+the documentation is translated the same way MSMARCO-XI is itself a machine
+translation of MS MARCO.
+
+Only prose is translated. Source code is not: a translated identifier answers
+nothing, and `detect_script_language` would read it as English anyway.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+from pathlib import Path
+from typing import Any
+
+LANGUAGE_NAMES: dict[str, str] = {
+    "hi": "Hindi",
+    "bn": "Bengali",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "mr": "Marathi",
+}
+
+TRANSLATE_SYSTEM = (
+    "You translate technical documentation. Translate the prose faithfully into "
+    "{language}. Leave every code block, inline code span, identifier, file path, "
+    "URL, environment variable and command-line flag exactly as written in the "
+    "source, including inside headings. Preserve Markdown structure. Return JSON "
+    "matching the schema and nothing else."
+)
+
+TRANSLATE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {"translation": {"type": "string"}},
+    "required": ["translation"],
+    "additionalProperties": False,
+}
+
+# Sections of one file are translated in a single call. Per-section calls put the
+# run well past a free-tier daily request quota - 116 sections across five
+# languages is 580 requests on its own - and the sections of one file share
+# context anyway, which makes the translation more consistent, not less.
+BATCH_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "translations": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["translations"],
+    "additionalProperties": False,
+}
+
+BATCH_SYSTEM = (
+    "You translate technical documentation into {language}. You are given "
+    "numbered sections. Return a JSON array with exactly one translation per "
+    "section, in the same order. Translate the prose faithfully. Leave every code "
+    "block, inline code span, identifier, file path, URL, environment variable and "
+    "command-line flag exactly as written in the source, including inside headings. "
+    "Preserve Markdown structure."
+)
+
+# Long documents are translated a section at a time: a whole file overruns the
+# generator's output budget and silently returns a truncated translation.
+MAX_SECTION_WORDS = 600
+
+
+def cache_path(root: Path, language: str, key: str) -> Path:
+    """One cached file per document, named after its key rather than its file.
+
+    Documents are sections, so a file yields many; caching per section keeps a
+    partial run's work and makes each translation reviewable on its own.
+    """
+    safe = hashlib.sha1(key.encode()).hexdigest()[:16]
+    stem = key.split(":")[0].replace("/", "__")
+    return root / "eval" / "translations" / language / f"{stem}.{safe}.md"
+
+
+async def translate_text(
+    generator: Any, text: str, language: str, *, max_tokens: int = 3000
+) -> str:
+    result = await generator.complete_json(
+        system=TRANSLATE_SYSTEM.format(language=LANGUAGE_NAMES[language]),
+        user=text,
+        schema=TRANSLATE_SCHEMA,
+        schema_name="translation",
+        max_tokens=max_tokens,
+    )
+    translated = str(result.get("translation") or "").strip()
+    if not translated:
+        raise RuntimeError(f"empty {language} translation")
+    return translated
+
+
+def _split_for_translation(text: str, max_words: int = MAX_SECTION_WORDS) -> list[str]:
+    paragraphs = text.split("\n\n")
+    blocks: list[str] = []
+    current: list[str] = []
+    count = 0
+    for paragraph in paragraphs:
+        words = len(paragraph.split())
+        if current and count + words > max_words:
+            blocks.append("\n\n".join(current))
+            current, count = [], 0
+        current.append(paragraph)
+        count += words
+    if current:
+        blocks.append("\n\n".join(current))
+    return blocks or [text]
+
+
+async def translate_batch(
+    generator: Any, texts: list[str], language: str, *, max_tokens: int = 8000
+) -> list[str]:
+    """Translate several sections in one call, or raise if the shapes disagree.
+
+    The count check is the whole safety of batching: a model that drops or merges
+    a section would otherwise shift every translation onto the wrong document.
+    """
+    numbered = "\n\n".join(
+        f"### SECTION {index}\n{text}" for index, text in enumerate(texts)
+    )
+    result = await generator.complete_json(
+        system=BATCH_SYSTEM.format(language=LANGUAGE_NAMES[language]),
+        user=numbered,
+        schema=BATCH_SCHEMA,
+        schema_name="translations",
+        max_tokens=max_tokens,
+    )
+    translations = result.get("translations")
+    if not isinstance(translations, list) or len(translations) != len(texts):
+        got = len(translations) if isinstance(translations, list) else "none"
+        raise RuntimeError(f"expected {len(texts)} {language} translations, got {got}")
+    cleaned = [str(item).strip() for item in translations]
+    if not all(cleaned):
+        raise RuntimeError(f"empty section in {language} translation")
+    return cleaned
+
+
+async def translate_documents(
+    generator: Any,
+    documents: list[Any],
+    *,
+    root: Path,
+    languages: list[str],
+    refresh: bool = False,
+    concurrency: int = 2,
+    batch_size: int = 6,
+    on_error: Any = None,
+) -> list[Any]:
+    """Translate each prose document, returning new documents in each language.
+
+    Translation happens per *document*, not per file, so a translated section
+    keeps the identity of the English section it came from. Translating a whole
+    file and re-splitting it would key sections on their translated headings, and
+    no Indic golden item could then be matched to its chunks.
+
+    Calls are batched by file to stay inside a free-tier request quota, and every
+    result is cached per section so a partial run keeps its work.
+    """
+    from . import sources
+
+    semaphore = asyncio.Semaphore(concurrency)
+    results: list[Any] = []
+
+    def cached(document: Any, language: str) -> Any | None:
+        destination = cache_path(root, language, str(document.metadata["document_key"]))
+        if destination.is_file() and not refresh:
+            text = destination.read_text(encoding="utf-8")
+            return sources.translated_document(document, language, text)
+        return None
+
+    def store(document: Any, language: str, text: str) -> Any:
+        destination = cache_path(root, language, str(document.metadata["document_key"]))
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(text, encoding="utf-8")
+        return sources.translated_document(document, language, text)
+
+    async def run_batch(batch: list[Any], language: str) -> None:
+        async with semaphore:
+            try:
+                translations = await translate_batch(
+                    generator, [document.text for document in batch], language
+                )
+            except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+                if on_error is not None:
+                    for document in batch:
+                        on_error(str(document.metadata["document_key"]), language, exc)
+                return
+        for document, text in zip(batch, translations, strict=True):
+            results.append(store(document, language, text))
+
+    tasks = []
+    for language in languages:
+        pending: list[Any] = []
+        for document in documents:
+            hit = cached(document, language)
+            if hit is not None:
+                results.append(hit)
+                continue
+            pending.append(document)
+        for start in range(0, len(pending), batch_size):
+            tasks.append(run_batch(pending[start : start + batch_size], language))
+    await asyncio.gather(*tasks)
+    return results
