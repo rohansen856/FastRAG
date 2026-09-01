@@ -19,12 +19,17 @@ data/
 eval/results/
 config/calibration.json
 config/corpus_centroid.json
+config/corpus_centroid.staged.json
 
-# Derived from the corpus by scripts/ingest-msmarco.py, not hand-reviewed.
-# Regenerate rather than commit; the .example files document the schema.
+# Derived from the corpus by scripts/ingest-self.py or scripts/ingest-msmarco.py, not
+# hand-reviewed. Regenerate rather than commit; the .example files document the schema.
 eval/golden.jsonl
 eval/calibration.jsonl
 eval/cache_pairs.jsonl
+
+# Machine translations of the prose docs, cached so re-ingest is cheap. Regenerate with
+# scripts/ingest-self.py; pass --refresh-translations to rebuild them.
+eval/translations/
 
 # Benchmark and evaluation output; regenerate with scripts/bench-latency.py
 bench/results/
