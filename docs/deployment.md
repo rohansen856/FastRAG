@@ -17,13 +17,21 @@ calibrate from your machine against hosted Qdrant, Postgres, and embedding:
 
 ```bash
 cp .env.cloud.example .env      # fill in every credential first
-uv run python scripts/ingest-msmarco.py --rows-per-language 250 --max-chunks 90000
+uv run python scripts/ingest-self.py --site-url https://your-site.example
+# ...or the MSMARCO-XI corpus instead:
+# uv run python scripts/ingest-msmarco.py --rows-per-language 250 --max-chunks 90000
 uv run python -m fastrag.calibrate \
   --golden eval/calibration.jsonl --cache-pairs eval/cache_pairs.jsonl
 ```
 
 The index lives in Qdrant Cloud + Neon. The API only needs `config/calibration.json` at
 startup (it refuses to boot without it). Re-ingest offline when the corpus changes.
+
+Calibration records the `content_version` it was fitted against, and startup rejects a
+mismatch, so re-ingesting without recalibrating fails loudly instead of serving the new
+corpus through the old thresholds. When re-ingesting against a deployment that is already
+serving, use `--no-activate` and flip the alias after calibrating; see
+[self-corpus.md](self-corpus.md).
 
 ## API on Vercel
 

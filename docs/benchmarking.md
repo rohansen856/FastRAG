@@ -14,6 +14,26 @@ unanswerable queries, targeting roughly 35 percent unanswerable. These are real 
 than fabricated ones, but they are the dataset's judgements, not yours - review them before
 treating a release as gated.
 
+`scripts/ingest-self.py` has no upstream labels to inherit, so it splits the work: the
+generator writes the questions, and the chunker assigns `relevant_chunk_ids` from the section
+each question came from. Unanswerable items are checked against the built index and dropped
+when something answers them, because a file exclusion is not a semantic exclusion. Answerable
+items are never filtered that way - pruning the ones retrieval missed is tuning the golden set
+to pass its own gate. These are derived labels, not reviewed ones; read
+[self-corpus.md](self-corpus.md) before gating a release on them.
+
+**Which corpus the published numbers come from.** The latency and quality figures in
+[latency.md](latency.md) are measured on MSMARCO-XI. The self-corpus is roughly 1,200 chunks
+under the `sentence` strategy, so retrieving the top 20 covers a large share of it and
+recall@20 stops discriminating; treat it as a smoke test there and read MRR@5, faithfulness,
+correctness and citation validity instead. Do not republish MSMARCO-XI numbers as if they
+were measured on the self-corpus.
+
+Keep the calibration split disjoint from the regression set. `scripts/ingest-self.py` splits
+one pool by source document, stratified across languages and answerability, and fails early
+if either split misses a bound its consumer requires - including the 40-negative floor that
+`choose_gate`'s 0.05 false-answer constraint implies.
+
 Check dataset shape:
 
 ```bash
@@ -61,9 +81,12 @@ This produces four calibrated values, not one:
   range **−1 to 1**; per-request override accepts the same range).
 
 Recalibrate when you change dense embeddings, reranker, chunking, prompt, provider model,
-profile, or corpus shape. Switching profile changes the embedding and reranking providers,
-so thresholds from one profile are meaningless on the other. Do not loosen thresholds to make
-a release pass without adding hard negatives and reviewing the error cases.
+profile, or corpus shape. The artifact records the `content_version` it was fitted against
+and startup rejects a mismatch, so re-indexing without recalibrating is a 503 on
+`/health/ready` rather than silently wrong gates. Switching profile changes the embedding and
+reranking providers, so thresholds from one profile are meaningless on the other. Do not
+loosen thresholds to make a release pass without adding hard negatives and reviewing the
+error cases.
 
 ## Load test
 

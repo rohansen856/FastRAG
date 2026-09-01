@@ -54,8 +54,10 @@ Two things in that file are worth knowing about before you hit them:
   `FASTRAG_SARVAM_API_KEY` blank to run text-only; the `/v1/voice/*` endpoints then return
   503 and nothing else is affected. See [voice.md](voice.md).
 
-The embedding model in this profile, `BAAI/bge-base-en-v1.5`, is English-only. To query the
-multilingual MSMARCO-XI corpus, use the `cloud` profile or configure a multilingual local
+The embedding model in this profile, `BAAI/bge-base-en-v1.5`, is English-only. The
+self-corpus indexes its English source and docs plus Indic translations of the prose, so this
+profile retrieves the English half well and the translated half poorly. For multilingual
+queries - against either corpus - use the `cloud` profile or configure a multilingual local
 model.
 
 ## Required calibration and model artifacts
@@ -122,7 +124,16 @@ Every strategy in `FASTRAG_CHUNK_STRATEGIES` is applied to each document and ind
 same collection under a `strategy` payload field, so they can be compared at query time. See
 [chunking.md](chunking.md).
 
-For the multilingual MSMARCO-XI corpus and a golden set derived from its own labels:
+The default corpus is the repository itself. Prose docs are machine translated into five
+Indic languages, and the golden, calibration and cache-pair sets are derived from the built
+index in the same run - see [self-corpus.md](self-corpus.md):
+
+```bash
+uv run python scripts/ingest-self.py --dry-run      # inspect counts first
+uv run python scripts/ingest-self.py
+```
+
+For the multilingual MSMARCO-XI corpus instead, with a golden set derived from its own labels:
 
 ```bash
 uv run python scripts/ingest-msmarco.py --rows-per-language 250 --max-chunks 90000

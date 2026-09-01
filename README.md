@@ -85,7 +85,21 @@ docker compose up -d
 uv run fastrag ingest docs/*.pdf docs/*.md docs/*.txt
 ```
 
-For the multilingual MSMARCO-XI corpus, with a golden set derived from its own labels:
+The default corpus is FastRAG itself - its docs, its Python source, and its deployment
+config - so the deployed service answers questions about how it works, citing the file and
+line that back each claim. Prose docs are machine translated into five Indic languages so the
+corpus stays genuinely multilingual:
+
+```bash
+uv run python scripts/ingest-self.py --dry-run      # inspect counts first
+uv run python scripts/ingest-self.py
+```
+
+Golden labels are derived rather than written: the generator writes the questions, the
+chunker assigns `relevant_chunk_ids`, and unanswerable items are verified against the built
+index. See [self-corpus.md](docs/self-corpus.md).
+
+For the multilingual MSMARCO-XI corpus instead, with a golden set derived from its own labels:
 
 ```bash
 uv run python scripts/ingest-msmarco.py --rows-per-language 250 --max-chunks 90000
