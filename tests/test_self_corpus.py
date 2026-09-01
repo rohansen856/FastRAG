@@ -321,3 +321,21 @@ async def test_batched_translation_rejects_a_count_mismatch(tmp_path: Path) -> N
     assert len(errors) == 3
     # Nothing cached, so a re-run retries rather than persisting a bad batch.
     assert not _cached_files(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # The marker that numbered the input, echoed back into the translation.
+        ("### SECTION 3\n## शीर्षक", "## शीर्षक"),
+        ("SECTION 0 body", "body"),
+        # Literal backslash-n, which would collapse a section into one line and
+        # defeat both sentence splitting and the citation excerpt.
+        ("line one\\nline two", "line one\nline two"),
+        ("## Real heading\nuntouched", "## Real heading\nuntouched"),
+    ],
+)
+def test_clean_translation(raw: str, expected: str) -> None:
+    from selfcorpus.translate import clean_translation
+
+    assert clean_translation(raw) == expected

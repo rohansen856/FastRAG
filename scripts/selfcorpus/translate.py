@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import re
 from pathlib import Path
 from typing import Any
 
@@ -111,6 +112,22 @@ def _split_for_translation(text: str, max_words: int = MAX_SECTION_WORDS) -> lis
     return blocks or [text]
 
 
+_SECTION_MARKER_RE = re.compile(r"^\s*#{0,6}\s*SECTION\s+\d+\s*", re.IGNORECASE)
+
+
+def clean_translation(text: str) -> str:
+    """Undo two things models reliably do to a batched translation.
+
+    They echo the `### SECTION n` marker that numbered the input, and they emit
+    the literal two characters backslash-n inside the JSON string instead of a
+    newline. Left alone, the first pollutes every chunk with a marker the reader
+    never asked about and the second collapses a Markdown section into one line,
+    which defeats sentence splitting and the citation excerpt with it.
+    """
+    cleaned = text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    return _SECTION_MARKER_RE.sub("", cleaned, count=1).strip()
+
+
 async def translate_batch(
     generator: Any, texts: list[str], language: str, *, max_tokens: int = 8000
 ) -> list[str]:
@@ -133,7 +150,7 @@ async def translate_batch(
     if not isinstance(translations, list) or len(translations) != len(texts):
         got = len(translations) if isinstance(translations, list) else "none"
         raise RuntimeError(f"expected {len(texts)} {language} translations, got {got}")
-    cleaned = [str(item).strip() for item in translations]
+    cleaned = [clean_translation(str(item)) for item in translations]
     if not all(cleaned):
         raise RuntimeError(f"empty section in {language} translation")
     return cleaned
