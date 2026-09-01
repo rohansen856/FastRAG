@@ -124,9 +124,11 @@ def classify(provider: str, exc: BaseException) -> ProviderError:
         return exc
     if isinstance(exc, httpx.HTTPStatusError):
         status = exc.response.status_code
+        # Carry a slice of the body: a bare status turns a provider saying
+        # "reduce your batch size" into an unexplained failure at ingest time.
         return ProviderError(
             provider,
-            f"{provider} returned {status}",
+            f"{provider} returned {status}{_body_hint(exc.response)}",
             status_code=status,
             retryable=status in RETRYABLE_STATUS,
         )
@@ -136,6 +138,17 @@ def classify(provider: str, exc: BaseException) -> ProviderError:
             provider, f"{provider} transport error: {detail}", retryable=True
         )
     return ProviderError(provider, f"{provider} call failed: {exc}")
+
+
+def _body_hint(response: httpx.Response, limit: int = 200) -> str:
+    """A short, collapsed slice of the error body for the exception message."""
+    try:
+        detail = response.text.strip()
+    except Exception:  # noqa: BLE001 - an unreadable body must not mask the status
+        return ""
+    if not detail:
+        return ""
+    return f": {' '.join(detail.split())[:limit]}"
 
 
 def retry_after_seconds(exc: BaseException) -> float | None:
