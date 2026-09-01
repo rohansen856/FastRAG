@@ -64,7 +64,7 @@ const metrics = [
     value: 6,
     suffix: "",
     prefix: "",
-    label: "Languages indexed · MSMARCO-XI",
+    label: "Languages indexed · self-corpus",
   },
   {
     value: 6,

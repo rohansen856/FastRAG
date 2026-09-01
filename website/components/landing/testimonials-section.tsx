@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 const achievements = [
   {
     quote:
-      "Indexed MSMARCO-XI across Hindi, Bengali, Tamil, Telugu, Marathi, and English - one collection, six languages, comparable side by side.",
+      "Indexes its own source and docs across Hindi, Bengali, Tamil, Telugu, Marathi, and English - one collection, six languages, comparable side by side.",
     detail: "Multilingual corpus",
-    context: "ai4bharat / MSMARCO-XI",
+    context: "FastRAG self-corpus",
     tag: "Six languages live",
   },
   {
@@ -34,7 +34,7 @@ const achievements = [
 ];
 
 const marqueeItems = [
-  "MSMARCO-XI",
+  "Self-corpus",
   "CRAG",
   "Hybrid RRF",
   "Sarvam STT",

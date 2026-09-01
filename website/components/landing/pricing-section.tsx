@@ -57,7 +57,7 @@ const profiles = [
       "Semantic cache on (Redis Stack / Cloud)",
       "Hybrid dense + sparse when RAM allows",
       "Stronger Groq / paid LLM + fallback",
-      "Full MSMARCO-XI ingest (not a tiny subset)",
+      "Full self-corpus ingest, translations included",
       "Golden gate + bench-latency both profiles",
     ],
     cta: "Read providers",

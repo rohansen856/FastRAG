@@ -561,7 +561,7 @@ export function HeroSection() {
             <div key={i} className="flex shrink-0 gap-16">
               {[
                 { value: "<200ms", label: "retrieval pipeline", tag: "LOCAL" },
-                { value: "6", label: "languages indexed", tag: "MSMARCO-XI" },
+                { value: "6", label: "languages indexed", tag: "SELF-CORPUS" },
                 { value: "CRAG", label: "grades before generate", tag: "ABSTAIN" },
                 { value: "6", label: "chunking strategies", tag: "COMPARE" },
                 { value: "Voice", label: "speak in, cite out", tag: "SARVAM" },

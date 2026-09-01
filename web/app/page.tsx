@@ -50,9 +50,9 @@ export default async function Home() {
       <header className="mb-8">
         <h1 className="text-2xl font-semibold text-slate-100">FastRAG</h1>
         <p className="mt-1 max-w-2xl text-sm text-[var(--color-muted)]">
-          Voice-enabled retrieval over MS MARCO passages in Hindi, Bengali, Tamil, Telugu, Marathi
-          and English. Every sentence is checked against its source before it reaches you, and the
-          pipeline abstains rather than guessing when retrieval is weak.
+          Voice-enabled retrieval over FastRAG&apos;s own code and docs, in Hindi, Bengali, Tamil,
+          Telugu, Marathi and English. Every sentence is checked against its source before it
+          reaches you, and the pipeline abstains rather than guessing when retrieval is weak.
         </p>
       </header>
 
