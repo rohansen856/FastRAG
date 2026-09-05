@@ -339,3 +339,36 @@ def test_clean_translation(raw: str, expected: str) -> None:
     from selfcorpus.translate import clean_translation
 
     assert clean_translation(raw) == expected
+
+
+def test_plan_batches_respects_the_token_budget() -> None:
+    """Providers meter prompt + reserved completion together.
+
+    A fixed batch size sends requests larger than a per-minute quota allows, and
+    the provider rejects those outright rather than queueing them.
+    """
+    from selfcorpus.translate import OUTPUT_RATIO, estimate_tokens, plan_batches
+
+    class _Doc:
+        def __init__(self, text: str) -> None:
+            self.text = text
+
+    documents = [_Doc("word " * 300) for _ in range(12)]
+    batches = plan_batches(documents, budget=2600)
+    assert sum(len(batch) for batch in batches) == len(documents)
+    for batch in batches:
+        cost = sum(estimate_tokens(doc.text) for doc in batch) * (1 + OUTPUT_RATIO)
+        assert cost <= 2600 or len(batch) == 1
+
+
+def test_plan_batches_keeps_an_oversized_section_alone() -> None:
+    """An outsized section is isolated so the provider rejects it, not its neighbours."""
+    from selfcorpus.translate import plan_batches
+
+    class _Doc:
+        def __init__(self, text: str) -> None:
+            self.text = text
+
+    huge, small = _Doc("word " * 5000), _Doc("tiny")
+    batches = plan_batches([huge, small], budget=2600)
+    assert [len(batch) for batch in batches] == [1, 1]

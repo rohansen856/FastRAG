@@ -257,7 +257,7 @@ async def translate_questions(
     *,
     languages: list[str],
     concurrency: int = 2,
-    batch_size: int = 20,
+    batch_size: int = 8,
     on_error: Any = None,
 ) -> list[GoldenCandidate]:
     """Re-express questions in each Indic language against that language's chunks.
@@ -287,7 +287,9 @@ async def translate_questions(
                     user=numbered,
                     schema=QUESTION_BATCH_SCHEMA,
                     schema_name="questions",
-                    max_tokens=4000,
+                    # Sized to the batch: a fixed reservation is charged against
+                    # the per-minute token quota whether or not it is used.
+                    max_tokens=len(numbered) // 2 + 256,
                 )
             except Exception as exc:  # noqa: BLE001 - reported, not swallowed
                 if on_error is not None:

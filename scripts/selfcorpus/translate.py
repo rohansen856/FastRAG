@@ -67,6 +67,15 @@ BATCH_SYSTEM = (
 # generator's output budget and silently returns a truncated translation.
 MAX_SECTION_WORDS = 600
 
+# Providers meter tokens per minute, and the quota covers the prompt *and* the
+# reserved completion: a free Groq tier allows 8000, so asking for a fixed
+# `max_tokens=8000` alongside any real input is rejected outright rather than
+# queued. Batches are therefore sized by estimated tokens, not by section count.
+TOKEN_BUDGET = 2600
+CHARS_PER_TOKEN = 4
+# Indic scripts need more tokens than the English they came from.
+OUTPUT_RATIO = 2.0
+
 
 def cache_path(root: Path, language: str, key: str) -> Path:
     """One cached file per document, named after its key rather than its file.
@@ -128,8 +137,35 @@ def clean_translation(text: str) -> str:
     return _SECTION_MARKER_RE.sub("", cleaned, count=1).strip()
 
 
+def estimate_tokens(text: str) -> int:
+    return max(1, len(text) // CHARS_PER_TOKEN)
+
+
+def plan_batches(
+    documents: list[Any], *, budget: int = TOKEN_BUDGET, max_items: int = 6
+) -> list[list[Any]]:
+    """Group documents so prompt plus reserved completion stays inside the quota.
+
+    A section that cannot fit even alone still gets its own batch: it will be
+    rejected loudly by the provider rather than silently dropped here.
+    """
+    batches: list[list[Any]] = []
+    current: list[Any] = []
+    total = 0
+    for document in documents:
+        cost = estimate_tokens(document.text) * (1 + OUTPUT_RATIO)
+        if current and (total + cost > budget or len(current) >= max_items):
+            batches.append(current)
+            current, total = [], 0
+        current.append(document)
+        total += cost
+    if current:
+        batches.append(current)
+    return batches
+
+
 async def translate_batch(
-    generator: Any, texts: list[str], language: str, *, max_tokens: int = 8000
+    generator: Any, texts: list[str], language: str, *, max_tokens: int | None = None
 ) -> list[str]:
     """Translate several sections in one call, or raise if the shapes disagree.
 
@@ -139,6 +175,10 @@ async def translate_batch(
     numbered = "\n\n".join(
         f"### SECTION {index}\n{text}" for index, text in enumerate(texts)
     )
+    if max_tokens is None:
+        # Reserve only what the output plausibly needs; an over-reservation is
+        # charged against the per-minute quota exactly like real output.
+        max_tokens = int(estimate_tokens(numbered) * OUTPUT_RATIO) + 256
     result = await generator.complete_json(
         system=BATCH_SYSTEM.format(language=LANGUAGE_NAMES[language]),
         user=numbered,
@@ -218,7 +258,7 @@ async def translate_documents(
                 results.append(hit)
                 continue
             pending.append(document)
-        for start in range(0, len(pending), batch_size):
-            tasks.append(run_batch(pending[start : start + batch_size], language))
+        for batch in plan_batches(pending, max_items=batch_size):
+            tasks.append(run_batch(batch, language))
     await asyncio.gather(*tasks)
     return results
