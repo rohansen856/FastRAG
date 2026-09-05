@@ -347,18 +347,25 @@ def test_plan_batches_respects_the_token_budget() -> None:
     A fixed batch size sends requests larger than a per-minute quota allows, and
     the provider rejects those outright rather than queueing them.
     """
-    from selfcorpus.translate import OUTPUT_RATIO, estimate_tokens, plan_batches
+    from selfcorpus.translate import (
+        OUTPUT_RATIO,
+        TOKEN_BUDGET,
+        estimate_tokens,
+        plan_batches,
+    )
 
     class _Doc:
         def __init__(self, text: str) -> None:
             self.text = text
 
     documents = [_Doc("word " * 300) for _ in range(12)]
-    batches = plan_batches(documents, budget=2600)
+    batches = plan_batches(documents, budget=700)
     assert sum(len(batch) for batch in batches) == len(documents)
     for batch in batches:
-        cost = sum(estimate_tokens(doc.text) for doc in batch) * (1 + OUTPUT_RATIO)
-        assert cost <= 2600 or len(batch) == 1
+        prompt = sum(estimate_tokens(doc.text) for doc in batch)
+        assert prompt <= 700 or len(batch) == 1
+        # Prompt plus the reservation sized from it must still fit the quota.
+        assert prompt + prompt * OUTPUT_RATIO <= TOKEN_BUDGET or len(batch) == 1
 
 
 def test_plan_batches_keeps_an_oversized_section_alone() -> None:
@@ -370,5 +377,5 @@ def test_plan_batches_keeps_an_oversized_section_alone() -> None:
             self.text = text
 
     huge, small = _Doc("word " * 5000), _Doc("tiny")
-    batches = plan_batches([huge, small], budget=2600)
+    batches = plan_batches([huge, small], budget=700)
     assert [len(batch) for batch in batches] == [1, 1]

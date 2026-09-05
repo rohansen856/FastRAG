@@ -71,10 +71,17 @@ MAX_SECTION_WORDS = 600
 # reserved completion: a free Groq tier allows 8000, so asking for a fixed
 # `max_tokens=8000` alongside any real input is rejected outright rather than
 # queued. Batches are therefore sized by estimated tokens, not by section count.
-TOKEN_BUDGET = 2000
 CHARS_PER_TOKEN = 4
-# Indic scripts need more tokens than the English they came from.
-OUTPUT_RATIO = 2.0
+# How much prompt one batch may carry. Kept well under the per-minute quota so
+# the reserved completion below still fits beside it.
+INPUT_BUDGET = 700
+# Devanagari, Bengali and Tamil tokenize far worse than the English they are
+# translated from - commonly three to five tokens where English needs one. Under
+# -reserving does not truncate politely: the model stops mid-object and the
+# provider rejects the whole call as `json_validate_failed`, wasting every token
+# it just spent. Over-reserving only costs quota, so this errs high.
+OUTPUT_RATIO = 4.5
+TOKEN_BUDGET = int(INPUT_BUDGET * (1 + OUTPUT_RATIO))
 
 
 def cache_path(root: Path, language: str, key: str) -> Path:
@@ -142,9 +149,12 @@ def estimate_tokens(text: str) -> int:
 
 
 def plan_batches(
-    documents: list[Any], *, budget: int = TOKEN_BUDGET, max_items: int = 6
+    documents: list[Any], *, budget: int = INPUT_BUDGET, max_items: int = 6
 ) -> list[list[Any]]:
-    """Group documents so prompt plus reserved completion stays inside the quota.
+    """Group documents so the prompt stays inside `budget` input tokens.
+
+    The reserved completion is sized from the same estimate in `translate_batch`,
+    so prompt and reservation together stay under the per-minute quota.
 
     A section that cannot fit even alone still gets its own batch: it will be
     rejected loudly by the provider rather than silently dropped here.
@@ -153,7 +163,7 @@ def plan_batches(
     current: list[Any] = []
     total = 0
     for document in documents:
-        cost = estimate_tokens(document.text) * (1 + OUTPUT_RATIO)
+        cost = estimate_tokens(document.text)
         if current and (total + cost > budget or len(current) >= max_items):
             batches.append(current)
             current, total = [], 0
