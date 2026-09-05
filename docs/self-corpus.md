@@ -181,6 +181,38 @@ strategy would make recall@20 discriminating again, but it must then also be mov
 front of `FASTRAG_CHUNK_STRATEGIES`, which changes the pipeline's default retrieval
 behaviour — a larger decision than it looks.
 
+## Provider quotas shape the run
+
+Ingest is the most provider-hungry thing this repository does, and free tiers meter it two
+ways at once. Groq's free tier allows 1000 requests per day and **8000 tokens per minute**,
+and that per-minute quota covers the prompt *and* whatever `max_tokens` reserves, whether or
+not the reservation is used. A fixed `max_tokens` large enough for a long translation is
+therefore rejected outright next to any real input, rather than queued.
+
+So batches are planned by estimated tokens, not by section count, and `max_tokens` is sized
+from the input. Two consequences worth planning around:
+
+- **Translation is the slow part.** Roughly 1000 tokens per section round trip, times the
+  number of sections and languages, divided by 8000 tokens per minute. A five-language pass
+  over 126 sections is over an hour of wall clock on a free tier - not because anything is
+  wrong, but because that is the quota. Run fewer languages first; the cache means the next
+  run resumes rather than repeats.
+- **Give ingest patient retries.** It is offline batch work, not a request path, so it can
+  afford to wait out a rate limit that a live query never should:
+
+  ```bash
+  export FASTRAG_RETRY_MAX_ATTEMPTS=8
+  export FASTRAG_RETRY_MAX_BACKOFF_SECONDS=90
+  export FASTRAG_CIRCUIT_BREAKER_FAILURES=1000
+  ```
+
+  Without the last one the breaker - sized for a live request path - opens partway through
+  and every remaining call fails fast against an open circuit. The generator is shared, so a
+  run of translation failures would otherwise take question generation down with it.
+
+`--max-questions` caps the English question-generation calls and samples across the corpus
+rather than truncating, so a smaller budget still covers every file rather than the first few.
+
 ## Running it
 
 Every threshold in `config/calibration.json` is a quantile of a score distribution measured
