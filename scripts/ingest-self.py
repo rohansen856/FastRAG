@@ -149,6 +149,11 @@ async def build(args: argparse.Namespace) -> int:
         for document in documents
         if document.metadata.get("category") == "documentation"
     ]
+    if args.max_translation_sections and len(prose) > args.max_translation_sections:
+        # Strided, so a capped run still spans every document rather than
+        # translating the first file exhaustively and none of the rest.
+        stride = max(1, len(prose) // args.max_translation_sections)
+        prose = prose[::stride][: args.max_translation_sections]
     if languages:
         print(
             f"translating {len(prose)} prose sections into {', '.join(languages)}...",
@@ -455,6 +460,13 @@ def main() -> None:
     )
     parser.add_argument("--languages", default=",".join(DEFAULT_LANGUAGES))
     parser.add_argument("--refresh-translations", action="store_true")
+    parser.add_argument(
+        "--max-translation-sections",
+        type=int,
+        default=0,
+        help="translate only this many prose sections per language (0 = all); "
+        "sampled across the corpus, for runs bounded by a provider token quota",
+    )
     parser.add_argument(
         "--site-url",
         default=None,
