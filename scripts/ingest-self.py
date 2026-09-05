@@ -201,6 +201,11 @@ async def build(args: argparse.Namespace) -> int:
         english,
         chunk_index,
         limit=args.max_questions,
+        priority_keys={
+            str(document.metadata["document_key"])
+            for document in documents
+            if document.language != "en"
+        },
         on_error=lambda title, exc: qa_failures.append(f"{title}: {exc}"),
     )
     unanswerable = await golden_mod.generate_unanswerable(

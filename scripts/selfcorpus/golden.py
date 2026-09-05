@@ -149,6 +149,7 @@ async def generate_answerable(
     concurrency: int = 1,
     min_words: int = 25,
     limit: int | None = None,
+    priority_keys: set[str] | None = None,
     on_error: Any = None,
 ) -> list[GoldenCandidate]:
     """One question per section that actually produced chunks."""
@@ -159,11 +160,22 @@ async def generate_answerable(
         and len(document.text.split()) >= min_words
     ]
     if limit is not None and len(eligible) > limit:
+        # Sections that were translated always get a question: they are the only
+        # documents that can carry an answerable item in another language, and a
+        # blind sample would usually miss them entirely.
+        keys = priority_keys or set()
+        required = [
+            document
+            for document in eligible
+            if str(document.metadata["document_key"]) in keys
+        ]
+        rest = [document for document in eligible if document not in required]
         # Strided, not sliced: documents arrive grouped by file, so the first N
         # would cover a handful of modules and leave the rest of the corpus with
         # no questions at all.
-        stride = max(1, len(eligible) // limit)
-        eligible = eligible[::stride][:limit]
+        budget = max(0, limit - len(required))
+        stride = max(1, len(rest) // budget) if budget else 1
+        eligible = required + (rest[::stride][:budget] if budget else [])
 
     semaphore = asyncio.Semaphore(concurrency)
     results: list[GoldenCandidate] = []

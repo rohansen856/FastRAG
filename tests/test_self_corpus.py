@@ -379,3 +379,41 @@ def test_plan_batches_keeps_an_oversized_section_alone() -> None:
     huge, small = _Doc("word " * 5000), _Doc("tiny")
     batches = plan_batches([huge, small], budget=700)
     assert [len(batch) for batch in batches] == [1, 1]
+
+
+@pytest.mark.asyncio
+async def test_priority_keys_survive_question_sampling() -> None:
+    """Translated sections must always get a question.
+
+    They are the only documents that can carry an answerable item in another
+    language, and a blind stride over hundreds of documents usually misses them.
+    """
+
+    class _Gen:
+        async def complete_json(self, *, system, user, schema, schema_name, **_: object):
+            return {"question": f"q about {user[:20]}", "answer": "a"}
+
+    documents = [
+        SourceDocument(
+            document_id=f"d{index}",
+            text="word " * 60,
+            title=f"file{index}.py — sym",
+            source_uri="https://example.invalid",
+            language="en",
+            metadata={
+                "section": "sym",
+                "category": "source",
+                "repo_path": f"file{index}.py",
+                "document_key": f"key-{index}",
+            },
+        )
+        for index in range(50)
+    ]
+    chunk_index = {f"key-{index}": [f"c{index}"] for index in range(50)}
+    translated = {"key-47", "key-48", "key-49"}
+
+    results = await golden_mod.generate_answerable(
+        _Gen(), documents, chunk_index, limit=10, priority_keys=translated
+    )
+    assert len(results) == 10
+    assert translated <= {item.document_key for item in results}
