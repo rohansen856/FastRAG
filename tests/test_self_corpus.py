@@ -278,10 +278,17 @@ def _cached_files(root: Path) -> list[Path]:
 
 
 class _MiscountingGenerator:
-    """Returns fewer translations than sections, as a sloppy model would."""
+    """Always returns exactly one translation, however many sections it was given."""
 
     async def complete_json(self, *, system, user, schema, schema_name, **_: object):
         return {"translations": ["only one"]}
+
+
+class _AlwaysShortGenerator:
+    """Returns an empty array, so even a single-section retry cannot be matched."""
+
+    async def complete_json(self, *, system, user, schema, schema_name, **_: object):
+        return {"translations": []}
 
 
 @pytest.mark.asyncio
@@ -317,8 +324,42 @@ async def test_batched_translation_rejects_a_count_mismatch(tmp_path: Path) -> N
         languages=["hi"],
         on_error=lambda key, language, exc: errors.append(f"{language}:{key}"),
     )
+    # The three-section batch is rejected on its count, then each section is
+    # retried alone - where one translation is the correct count. The mismatch is
+    # what stops a short array being zipped onto the wrong documents; it is not a
+    # reason to abandon sections that can be translated individually.
+    assert len(result) == 3
+    assert errors == []
+
+
+@pytest.mark.asyncio
+async def test_unrecoverable_mismatch_is_reported_not_cached(tmp_path: Path) -> None:
+    """When even a single section cannot be matched, nothing is written."""
+    from selfcorpus import translate
+
+    document = SourceDocument(
+        document_id=sources.document_id("docs/a.md", "S0", "en"),
+        text="## S0\nbody",
+        title="docs/a.md — S0",
+        source_uri="https://example.invalid",
+        language="en",
+        metadata={
+            "section": "S0",
+            "category": "documentation",
+            "repo_path": "docs/a.md",
+            "document_key": sources.document_key("docs/a.md", "S0"),
+        },
+    )
+    errors: list[str] = []
+    result = await translate.translate_documents(
+        _AlwaysShortGenerator(),
+        [document],
+        root=tmp_path,
+        languages=["hi"],
+        on_error=lambda key, language, exc: errors.append(f"{language}:{key}"),
+    )
     assert result == []
-    assert len(errors) == 3
+    assert len(errors) == 1
     # Nothing cached, so a re-run retries rather than persisting a bad batch.
     assert not _cached_files(tmp_path)
 
@@ -417,3 +458,56 @@ async def test_priority_keys_survive_question_sampling() -> None:
     )
     assert len(results) == 10
     assert translated <= {item.document_key for item in results}
+
+
+class _OneBadSectionGenerator:
+    """Fails any multi-section batch, succeeds on singles - the real failure shape.
+
+    A batch is rejected as a unit when one section's output overruns the
+    reservation, so the rest of the batch is collateral damage.
+    """
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def complete_json(self, *, system, user, schema, schema_name, **_: object):
+        self.calls += 1
+        count = user.count("### SECTION ")
+        if count > 1:
+            raise RuntimeError("json_validate_failed")
+        return {"translations": ["अनुवाद"]}
+
+
+@pytest.mark.asyncio
+async def test_failed_batch_retries_its_members_individually(tmp_path: Path) -> None:
+    from selfcorpus import translate
+
+    documents = [
+        SourceDocument(
+            document_id=sources.document_id("docs/a.md", f"S{index}", "en"),
+            text=f"## S{index}\nbody {index}",
+            title=f"docs/a.md — S{index}",
+            source_uri="https://example.invalid",
+            language="en",
+            metadata={
+                "section": f"S{index}",
+                "category": "documentation",
+                "repo_path": "docs/a.md",
+                "document_key": sources.document_key("docs/a.md", f"S{index}"),
+            },
+        )
+        for index in range(3)
+    ]
+    generator = _OneBadSectionGenerator()
+    errors: list[str] = []
+    result = await translate.translate_documents(
+        generator,
+        documents,
+        root=tmp_path,
+        languages=["hi"],
+        batch_size=3,
+        on_error=lambda key, language, exc: errors.append(key),
+    )
+    # One failed batch, then three successful singles: nothing is lost.
+    assert len(result) == 3
+    assert errors == []

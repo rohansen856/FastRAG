@@ -79,8 +79,9 @@ INPUT_BUDGET = 700
 # translated from - commonly three to five tokens where English needs one. Under
 # -reserving does not truncate politely: the model stops mid-object and the
 # provider rejects the whole call as `json_validate_failed`, wasting every token
-# it just spent. Over-reserving only costs quota, so this errs high.
-OUTPUT_RATIO = 4.5
+# it just spent. Tamil and Telugu are the worst of them, so this errs high;
+# over-reserving only costs quota, and a rejected call costs all of it.
+OUTPUT_RATIO = 6.0
 TOKEN_BUDGET = int(INPUT_BUDGET * (1 + OUTPUT_RATIO))
 
 
@@ -245,19 +246,35 @@ async def translate_documents(
         destination.write_text(text, encoding="utf-8")
         return sources.translated_document(document, language, text)
 
-    async def run_batch(batch: list[Any], language: str) -> None:
+    async def attempt(batch: list[Any], language: str) -> Exception | None:
+        """One provider call, holding the semaphore only for its duration."""
         async with semaphore:
             try:
                 translations = await translate_batch(
                     generator, [document.text for document in batch], language
                 )
-            except Exception as exc:  # noqa: BLE001 - reported, not swallowed
-                if on_error is not None:
-                    for document in batch:
-                        on_error(str(document.metadata["document_key"]), language, exc)
-                return
+            except Exception as exc:  # noqa: BLE001 - returned, not swallowed
+                return exc
         for document, text in zip(batch, translations, strict=True):
             results.append(store(document, language, text))
+        return None
+
+    async def run_batch(batch: list[Any], language: str) -> None:
+        failure = await attempt(batch, language)
+        if failure is None:
+            return
+        if len(batch) > 1:
+            # A batch is rejected as a unit, and the usual cause is one section
+            # whose output overran the reservation. Retrying the members singly
+            # rescues the rest instead of losing the whole batch to one of them,
+            # and each then gets a reservation sized for it alone. The retry sits
+            # outside `attempt` so it never waits on a semaphore its own caller
+            # is still holding - doing that inside deadlocks at concurrency 1.
+            for document in batch:
+                await run_batch([document], language)
+            return
+        if on_error is not None:
+            on_error(str(batch[0].metadata["document_key"]), language, failure)
 
     tasks = []
     for language in languages:
