@@ -71,7 +71,7 @@ MAX_SECTION_WORDS = 600
 # reserved completion: a free Groq tier allows 8000, so asking for a fixed
 # `max_tokens=8000` alongside any real input is rejected outright rather than
 # queued. Batches are therefore sized by estimated tokens, not by section count.
-TOKEN_BUDGET = 2600
+TOKEN_BUDGET = 2000
 CHARS_PER_TOKEN = 4
 # Indic scripts need more tokens than the English they came from.
 OUTPUT_RATIO = 2.0
@@ -203,7 +203,7 @@ async def translate_documents(
     root: Path,
     languages: list[str],
     refresh: bool = False,
-    concurrency: int = 2,
+    concurrency: int = 1,
     batch_size: int = 6,
     on_error: Any = None,
 ) -> list[Any]:

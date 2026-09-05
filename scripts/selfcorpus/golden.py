@@ -146,7 +146,7 @@ async def generate_answerable(
     documents: list[Any],
     chunk_index: dict[str, list[str]],
     *,
-    concurrency: int = 2,
+    concurrency: int = 1,
     min_words: int = 25,
     limit: int | None = None,
     on_error: Any = None,
@@ -209,7 +209,7 @@ async def generate_answerable(
 
 
 async def generate_unanswerable(
-    generator: Any, *, per_topic: int = 5, concurrency: int = 2, on_error: Any = None
+    generator: Any, *, per_topic: int = 5, concurrency: int = 1, on_error: Any = None
 ) -> list[GoldenCandidate]:
     semaphore = asyncio.Semaphore(concurrency)
     results: list[GoldenCandidate] = []
@@ -256,7 +256,7 @@ async def translate_questions(
     translated_chunk_index: dict[str, dict[str, list[str]]],
     *,
     languages: list[str],
-    concurrency: int = 2,
+    concurrency: int = 1,
     batch_size: int = 8,
     on_error: Any = None,
 ) -> list[GoldenCandidate]:
@@ -458,7 +458,7 @@ def cache_pairs(
 
 
 async def generate_paraphrases(
-    generator: Any, candidates: list[GoldenCandidate], *, concurrency: int = 4
+    generator: Any, candidates: list[GoldenCandidate], *, concurrency: int = 1
 ) -> dict[str, str]:
     """A genuine restatement of each question, for the semantic-cache positives.
 
