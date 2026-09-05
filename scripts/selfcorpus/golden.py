@@ -178,7 +178,10 @@ async def generate_answerable(
             try:
                 result = await generator.complete_json(
                     system=QA_SYSTEM,
-                    user=f"File: {document.title}\n\n{document.text[:6000]}",
+                    # A section's opening is enough to write a question about
+                    # it, and the prompt is charged against a per-minute token
+                    # quota on every one of a few hundred calls.
+                    user=f"File: {document.title}\n\n{document.text[:2500]}",
                     schema=QA_SCHEMA,
                     schema_name="qa",
                     max_tokens=400,
