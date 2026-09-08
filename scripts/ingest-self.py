@@ -194,6 +194,46 @@ async def build(args: argparse.Namespace) -> int:
     )
     english = [document for document in documents if document.language == "en"]
 
+    if args.dry_run:
+        # Deliberately free of generator calls: a dry run is for checking the
+        # shape of the corpus, and should not spend a token quota to do it.
+        print(
+            json.dumps(
+                {
+                    "documents": len(documents),
+                    "chunks": len(chunks),
+                    "chunks_by_strategy": dict(by_strategy),
+                    "chunks_by_language": dict(by_language),
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    # Index before generating anything. Building the index needs chunks and an
+    # embedder and nothing else; the generator is only required for the golden
+    # set. Doing questions first meant a rate-limited generator blocked an index
+    # that never depended on it.
+    registry = PostgresIndexRegistry(settings.database_url)
+    await registry.initialize()
+    builder = build_index_builder(settings, registry)
+    manifest = await builder.build_from_chunks(
+        chunks,
+        content_version=content_digest(documents),
+        version=args.index_version,
+        activate=not args.no_activate,
+    )
+    print(f"indexed into {manifest.collection_name} (state={manifest.state})", flush=True)
+
+    if args.skip_eval:
+        print(
+            "\n--skip-eval: the index is built but the evaluation sets are unchanged.\n"
+            "Calibration is still fitted against the previous corpus, so do not\n"
+            "activate this index until the golden set and thresholds are rebuilt.",
+            flush=True,
+        )
+        return 0
+
     print("generating questions...", flush=True)
     qa_failures: list[str] = []
     answerable = await golden_mod.generate_answerable(
@@ -215,33 +255,12 @@ async def build(args: argparse.Namespace) -> int:
     )
     print(f"{len(answerable)} answerable, {len(unanswerable)} unanswerable (English)", flush=True)
     report_failures("question generation", qa_failures)
-
-    if args.dry_run:
-        print(
-            json.dumps(
-                {
-                    "documents": len(documents),
-                    "chunks": len(chunks),
-                    "chunks_by_strategy": dict(by_strategy),
-                    "chunks_by_language": dict(by_language),
-                    "answerable": len(answerable),
-                    "unanswerable": len(unanswerable),
-                },
-                indent=2,
-            )
+    if not answerable:
+        raise SystemExit(
+            "  - no questions were generated; the index above is built and "
+            "validated, but the evaluation sets were left untouched"
         )
-        return 0
 
-    registry = PostgresIndexRegistry(settings.database_url)
-    await registry.initialize()
-    builder = build_index_builder(settings, registry)
-    manifest = await builder.build_from_chunks(
-        chunks,
-        content_version=content_digest(documents),
-        version=args.index_version,
-        activate=not args.no_activate,
-    )
-    print(f"indexed into {manifest.collection_name} (state={manifest.state})", flush=True)
     return await finalise(
         args,
         settings=settings,
@@ -506,6 +525,12 @@ def main() -> None:
         metavar="INDEX_VERSION",
         default=None,
         help="flip the alias onto a collection previously built with --no-activate",
+    )
+    parser.add_argument(
+        "--skip-eval",
+        action="store_true",
+        help="build and index the corpus without regenerating the evaluation sets; "
+        "useful when only the index changed or the generator quota is exhausted",
     )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
