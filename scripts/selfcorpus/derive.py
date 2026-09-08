@@ -96,6 +96,9 @@ _ABSENT_FORMS = (
     "How do I configure {topic} in FastRAG?",
     "What are the defaults for {topic} in FastRAG?",
     "Where is {topic} documented for FastRAG?",
+    "What does FastRAG's {topic} cost at scale?",
+    "Which environment variable enables {topic} in FastRAG?",
+    "How do I troubleshoot {topic} in FastRAG?",
 )
 
 

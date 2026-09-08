@@ -76,6 +76,18 @@ ABSENT_TOPICS: tuple[str, ...] = (
     "streaming audio output / text-to-speech responses",
     "a Kafka or RabbitMQ event bus integration",
     "on-device inference for mobile clients",
+    "a browser extension for querying the index",
+    "automatic A/B testing of prompts in production",
+    "a plugin system for third-party retrievers",
+    "billing or usage metering per API key",
+    "image or video embeddings for multimodal retrieval",
+    "federated search across several Qdrant clusters",
+    "SAML or OIDC single sign-on",
+    "a Terraform provider or module",
+    "graph-based retrieval over entity relationships",
+    "a feedback loop that learns from user ratings",
+    "an offline desktop application",
+    "automatic index sharding by tenant",
 )
 
 
