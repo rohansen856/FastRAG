@@ -22,6 +22,12 @@ items are never filtered that way - pruning the ones retrieval missed is tuning 
 to pass its own gate. These are derived labels, not reviewed ones; read
 [self-corpus.md](self-corpus.md) before gating a release on them.
 
+`scripts/derive-eval.py` is the fallback when the generator quota is gone: it derives the
+same records from headings, symbol names and docstrings. Those questions share vocabulary
+with the chunks they point at, so the thresholds they produce are optimistic - treat them as
+a bootstrap that lets a new index be served, and recalibrate from generated questions when
+quota returns.
+
 **Which corpus the published numbers come from.** The latency and quality figures in
 [latency.md](latency.md) are measured on MSMARCO-XI. The self-corpus is roughly 1,200 chunks
 under the `sentence` strategy, so retrieving the top 20 covers a large share of it and

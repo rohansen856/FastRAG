@@ -97,7 +97,9 @@ uv run python scripts/ingest-self.py
 
 Golden labels are derived rather than written: the generator writes the questions, the
 chunker assigns `relevant_chunk_ids`, and unanswerable items are verified against the built
-index. See [self-corpus.md](docs/self-corpus.md).
+index. When a generator quota is exhausted, `scripts/derive-eval.py` builds the same records
+from corpus structure alone so a fresh index can still be calibrated and served. See
+[self-corpus.md](docs/self-corpus.md).
 
 For the multilingual MSMARCO-XI corpus instead, with a golden set derived from its own labels:
 

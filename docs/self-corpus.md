@@ -181,6 +181,35 @@ strategy would make recall@20 discriminating again, but it must then also be mov
 front of `FASTRAG_CHUNK_STRATEGIES`, which changes the pipeline's default retrieval
 behaviour — a larger decision than it looks.
 
+## Deriving the set without a generator
+
+`scripts/derive-eval.py` builds the same records from corpus structure alone: a
+Markdown heading names its section, a Python symbol names itself, and a section's
+opening prose is its reference answer. Unanswerable items are templated over a
+list of capabilities the repository genuinely lacks. No generator is called.
+
+This exists because of an ordering problem rather than a preference. A freshly
+indexed corpus cannot be served at all until some calibration matches it - every
+threshold is fitted against one corpus and startup checks which - so a generator
+quota that runs out leaves a built index that nothing is allowed to query.
+Deriving the set closes that gap in one command:
+
+```bash
+uv run python scripts/derive-eval.py --collection kb_<version>
+uv run python -m fastrag.calibrate \
+  --golden eval/calibration.jsonl --cache-pairs eval/cache_pairs.jsonl
+```
+
+It reads an existing collection and re-embeds nothing: chunk ids are a hash of
+the chunk text, so they are recomputed locally and checked against the live
+collection before anything is written.
+
+**Read the resulting numbers with the caveat.** A heading-derived question shares
+vocabulary with the chunk it points at, so retrieval finds it more easily than a
+real user's phrasing would, and thresholds fitted on it are optimistic. It is a
+bootstrap, not a replacement: regenerate with `ingest-self.py` when quota allows
+and recalibrate.
+
 ## Provider quotas shape the run
 
 Ingest is the most provider-hungry thing this repository does, and free tiers meter it two
@@ -192,6 +221,11 @@ therefore rejected outright next to any real input, rather than queued.
 So batches are planned by estimated tokens, not by section count, and `max_tokens` is sized
 from the input. Two consequences worth planning around:
 
+- **The daily budget binds before the per-minute one.** Groq's free tier also caps
+  tokens per *day* at 20,000, which is about five translation batches. A full
+  multilingual pass is days of quota, not minutes; `--skip-eval` and
+  `scripts/derive-eval.py` exist so an index can still be built and served in the
+  meantime.
 - **Translation is the slow part.** Roughly 1000 tokens per section round trip, times the
   number of sections and languages, divided by 8000 tokens per minute. A five-language pass
   over 126 sections is over an hour of wall clock on a free tier - not because anything is
