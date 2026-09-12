@@ -73,16 +73,27 @@ class QdrantHybridRetriever:
             if self._collection_provider is not None
             else self._collection
         )
-        return await asyncio.to_thread(
-            self._retrieve_sync,
-            selected_collection,
-            query,
-            vector,
-            limit,
-            strategy,
-            language,
-            document_ids,
-        )
+        # One bounded retry. The pipeline still fails closed if the store is
+        # genuinely down - this only covers a single dropped connection, which a
+        # hosted cluster produces often enough to lose a whole calibration run
+        # to. The request deadline continues to bound the total wait.
+        for attempt in range(2):
+            try:
+                return await asyncio.to_thread(
+                    self._retrieve_sync,
+                    selected_collection,
+                    query,
+                    vector,
+                    limit,
+                    strategy,
+                    language,
+                    document_ids,
+                )
+            except Exception:
+                if attempt:
+                    raise
+                await asyncio.sleep(0.5)
+        raise RuntimeError("unreachable")
 
     def _retrieve_sync(
         self,

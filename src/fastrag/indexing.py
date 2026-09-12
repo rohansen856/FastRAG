@@ -235,13 +235,32 @@ class IndexBuilder:
                 )
                 for item, dense_vector, sparse_vector in zip(batch, dense, sparse, strict=True)
             ]
-            await asyncio.to_thread(
-                self._client.upsert,
-                collection_name=collection,
-                points=points,
-                wait=True,
-            )
+            await self._upsert_with_retry(collection, points)
         return all_vectors
+
+    async def _upsert_with_retry(
+        self, collection: str, points: list[Any], attempts: int = 4
+    ) -> None:
+        """Upload one batch, tolerating a transient vector-store failure.
+
+        A full ingest is dozens of round trips and an hour of embedding cost. A
+        single read timeout part-way through would otherwise discard all of it
+        and leave a partially populated collection that `_validate_collection`
+        then rejects on its count.
+        """
+        for attempt in range(attempts):
+            try:
+                await asyncio.to_thread(
+                    self._client.upsert,
+                    collection_name=collection,
+                    points=points,
+                    wait=True,
+                )
+                return
+            except Exception:
+                if attempt == attempts - 1:
+                    raise
+                await asyncio.sleep(2 * (attempt + 1))
 
     @staticmethod
     def _write_centroid(vectors: Sequence[Sequence[float]], *, path: Path = CENTROID_PATH) -> None:
