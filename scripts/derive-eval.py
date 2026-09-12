@@ -85,9 +85,20 @@ async def main(args: argparse.Namespace) -> int:
     collection = args.collection or None
 
     async def retrieve(query: str, vector: list[float], limit: int) -> Any:
-        return await retriever.retrieve(
-            query, vector, limit, collection=collection, strategy=golden_strategy
-        )
+        # Qdrant calls on the request path are deliberately un-retried: a query
+        # should fail fast rather than hold a user. A few hundred scoring calls
+        # are different - one transient read timeout should not discard the whole
+        # run - so this batch path retries with a short backoff.
+        last: Exception | None = None
+        for attempt in range(4):
+            try:
+                return await retriever.retrieve(
+                    query, vector, limit, collection=collection, strategy=golden_strategy
+                )
+            except Exception as exc:  # noqa: BLE001 - re-raised if every attempt fails
+                last = exc
+                await asyncio.sleep(2 * (attempt + 1))
+        raise RuntimeError(f"retrieval failed after 4 attempts: {last}")
 
     # Where the answerable population sits, so "scores like an answer" is
     # measured against this corpus rather than guessed.
