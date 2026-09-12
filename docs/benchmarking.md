@@ -29,7 +29,7 @@ a bootstrap that lets a new index be served, and recalibrate from generated ques
 quota returns.
 
 **Which corpus the published numbers come from.** The latency and quality figures in
-[latency.md](latency.md) are measured on MSMARCO-XI. The self-corpus is roughly 1,200 chunks
+[latency.md](latency.md) are measured on MSMARCO-XI. The self-corpus is around 650 chunks
 under the `sentence` strategy, so retrieving the top 20 covers a large share of it and
 recall@20 stops discriminating; treat it as a smoke test there and read MRR@5, faithfulness,
 correctness and citation validity instead. Do not republish MSMARCO-XI numbers as if they

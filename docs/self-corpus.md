@@ -35,8 +35,9 @@ are split before chunking:
   letting the sentence chunker loose on raw source lands chunk boundaries mid-function.
 - **Config files** stay whole.
 
-That turns 65 files into roughly 366 English documents, and about 950 once the 116 prose
-sections are translated. Each carries a `section` in its metadata,
+That turns 74 tracked files into 436 English documents - the corpus grows as the repository
+does, this file included - and roughly 950 more once the prose sections are
+translated. Each carries a `section` in its metadata,
 which is what `metadata_aware` chunking embeds as a header — the role MS MARCO's `query`
 field used to play.
 
@@ -168,9 +169,9 @@ are trivially separable and let `choose_cache_distance` settle on a uselessly pe
 At `FASTRAG_CHUNK_SIZE=400` the English self-corpus yields roughly 90 `sentence` chunks.
 Retrieving the top 20 from 90 is over a fifth of the corpus, so `recall_at_20 >= 0.95` becomes
 nearly free and stops discriminating. Section and AST splitting already multiplies the
-document count; setting `FASTRAG_CHUNK_SIZE=150` takes it to roughly 490 English chunks, and
-about 1,200 once the five translations are indexed alongside. Small, but no longer
-degenerate.
+document count; at `FASTRAG_CHUNK_SIZE=150` the English corpus measures 645 `sentence` chunks
+(1,290 across `sentence` and `metadata_aware` together), and roughly twice that once the five
+translations are indexed alongside. Small, but no longer degenerate.
 
 Be honest about the consequence: on a corpus this size, recall@20 is a smoke test. MRR@5,
 faithfulness, correctness and citation validity still mean something. Published latency and
