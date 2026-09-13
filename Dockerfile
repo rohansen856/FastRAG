@@ -12,9 +12,13 @@ COPY --from=builder /wheels /wheels
 RUN python -m pip install --no-index --find-links=/wheels fastrag && rm -r /wheels
 WORKDIR /app
 COPY --chown=fastrag:fastrag config ./config
+# In-process models are fetched at boot rather than baked in: they are gigabytes, and
+# `download_models` checksum-verifies whichever pair the environment pins.
+RUN mkdir -p /models && chown fastrag:fastrag /models
 USER fastrag
 EXPOSE 8000
 # calibration.json is gitignored, so COPY config/ only brings the prompt. Materialize
 # it from FASTRAG_CALIBRATION_JSON when that env var is set (Render / any Docker host).
-CMD ["sh", "-c", "if [ -n \"$FASTRAG_CALIBRATION_JSON\" ]; then printf '%s\\n' \"$FASTRAG_CALIBRATION_JSON\" > /app/config/calibration.json; fi; exec uvicorn fastrag.api:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]
+# FASTRAG_DOWNLOAD_MODELS=true fetches the pinned in-process models before serving.
+CMD ["sh", "-c", "if [ -n \"$FASTRAG_CALIBRATION_JSON\" ]; then printf '%s\\n' \"$FASTRAG_CALIBRATION_JSON\" > /app/config/calibration.json; fi; if [ \"$FASTRAG_DOWNLOAD_MODELS\" = true ]; then python -m fastrag.download_models || exit 1; fi; exec uvicorn fastrag.api:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]
 
