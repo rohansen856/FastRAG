@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     dense_model_file: str = "model_optimized.onnx"
     dense_dimension: int = 768
     dense_query_prefix: str = "Represent this sentence for searching relevant passages: "
+    dense_document_prefix: str = ""
     dense_normalize: bool = True
     reranker_model_id: str = "Xenova/ms-marco-MiniLM-L-6-v2"
     reranker_revision: str = "pinned-in-deployment"
@@ -204,6 +205,10 @@ class Settings(BaseSettings):
     def active_dense_query_prefix(self) -> str:
         # Hosted models take a task parameter instead of a textual prefix.
         return "" if self.uses_hosted_embedding else self.dense_query_prefix
+
+    @property
+    def active_dense_document_prefix(self) -> str:
+        return "" if self.uses_hosted_embedding else self.dense_document_prefix
 
     @property
     def active_dense_revision(self) -> str:

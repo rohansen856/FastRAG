@@ -12,6 +12,7 @@ class FastEmbedder:
         model_id: str,
         *,
         query_prefix: str = "",
+        document_prefix: str = "",
         normalize: bool = True,
         model_path: Path | None = None,
     ) -> None:
@@ -23,6 +24,9 @@ class FastEmbedder:
             local_files_only=model_path is not None,
         )
         self._query_prefix = query_prefix
+        # Asymmetric models such as E5 are trained with a marker on both sides
+        # ("query: " / "passage: "); omitting the passage one measurably hurts recall.
+        self._document_prefix = document_prefix
         self._normalize = normalize
 
     async def embed_query(self, query: str, *, deadline: object = None) -> list[float]:
@@ -36,7 +40,11 @@ class FastEmbedder:
     ) -> list[list[float]]:
         if not documents:
             return []
-        vectors = await asyncio.to_thread(lambda: list(self._model.passage_embed(list(documents))))
+        vectors = await asyncio.to_thread(
+            lambda: list(
+                self._model.passage_embed([self._document_prefix + text for text in documents])
+            )
+        )
         return [self._as_list(vector) for vector in vectors]
 
     def _as_list(self, vector: Any) -> list[float]:

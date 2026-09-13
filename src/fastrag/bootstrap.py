@@ -35,6 +35,7 @@ def embedding_fingerprint(settings: Settings) -> EmbeddingFingerprint:
         dimension=settings.active_dense_dimension,
         normalize=settings.dense_normalize,
         query_prefix=settings.active_dense_query_prefix,
+        document_prefix=settings.active_dense_document_prefix,
     )
 
 
@@ -78,6 +79,7 @@ def build_embedder_and_reranker(settings: Settings) -> tuple[Any, Any]:
         embedder = FastEmbedder(
             settings.dense_model_id,
             query_prefix=settings.dense_query_prefix,
+            document_prefix=settings.dense_document_prefix,
             normalize=settings.dense_normalize,
             model_path=settings.dense_model_path,
         )
