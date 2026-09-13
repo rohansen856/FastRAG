@@ -58,3 +58,14 @@ def test_hosted_embedders_ignore_textual_prefixes() -> None:
     settings = Settings(embedding_provider="jina", dense_document_prefix="passage: ")
     assert embedding_fingerprint(settings).document_prefix == ""
 
+
+@pytest.mark.parametrize("raw", ["query: ", "query:", " query:  "])
+def test_prefix_whitespace_survives_env_var_trimming(raw: str) -> None:
+    """Dashboards trim values; a trimmed prefix must not silently change the fingerprint."""
+    assert Settings(dense_query_prefix=raw).dense_query_prefix == "query: "
+
+
+def test_empty_prefix_stays_empty_and_bge_default_is_unchanged() -> None:
+    assert Settings(dense_document_prefix="  ").dense_document_prefix == ""
+    bge = "Represent this sentence for searching relevant passages: "
+    assert Settings(dense_query_prefix=bge).dense_query_prefix == bge

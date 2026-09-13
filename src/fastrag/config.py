@@ -143,6 +143,14 @@ class Settings(BaseSettings):
             raise ValueError("retrieval_candidate_k must be positive")
         return value
 
+    @field_validator("dense_query_prefix", "dense_document_prefix")
+    @classmethod
+    def prefix_ends_in_one_space(cls, value: str) -> str:
+        # The prefix is part of the embedding fingerprint, and hosting dashboards trim
+        # env values: "query: " arriving as "query:" would reject a valid index.
+        stripped = value.strip()
+        return f"{stripped} " if stripped else ""
+
     @field_validator("cache_distance_threshold")
     @classmethod
     def validate_cache_distance(cls, value: float | None) -> float | None:
