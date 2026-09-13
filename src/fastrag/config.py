@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
 
     dense_model_id: str = "BAAI/bge-base-en-v1.5"
+    # Hugging Face repository `fastrag.download_models` fetches the ONNX export from.
+    dense_model_repository: str = "qdrant/bge-base-en-v1.5-onnx-q"
     dense_model_revision: str = "pinned-in-deployment"
     dense_model_sha256: str = "set-in-production"
     dense_model_path: Path | None = None
@@ -53,6 +55,7 @@ class Settings(BaseSettings):
     dense_document_prefix: str = ""
     dense_normalize: bool = True
     reranker_model_id: str = "Xenova/ms-marco-MiniLM-L-6-v2"
+    reranker_model_repository: str = "Xenova/ms-marco-MiniLM-L-6-v2"
     reranker_revision: str = "pinned-in-deployment"
     reranker_sha256: str = "set-in-production"
     reranker_model_path: Path | None = None
