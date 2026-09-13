@@ -112,6 +112,7 @@ def build_retriever(settings: Settings) -> Any:
         api_key=(settings.qdrant_api_key.get_secret_value() if settings.qdrant_api_key else None),
         leg_k=settings.retrieval_leg_k,
         sparse=settings.sparse_retrieval_enabled,
+        fallback_languages=settings.retrieval_fallback_language_list,
     )
 
 

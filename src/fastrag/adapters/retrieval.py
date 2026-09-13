@@ -42,11 +42,16 @@ class QdrantHybridRetriever:
         collection_provider: Callable[[], Awaitable[str]] | None = None,
         leg_k: int = 40,
         sparse: bool = True,
+        fallback_languages: Sequence[str] = (),
     ) -> None:
         self._client: Any = connect_qdrant(url, api_key)
         self._collection = collection
         self._collection_provider = collection_provider
         self._leg_k = leg_k
+        # Languages always searched alongside the requested one. A corpus indexed
+        # once in English and served through a cross-lingual embedder has no Hindi
+        # chunks, so an exact filter would turn every Hindi query into zero hits.
+        self._fallback_languages = tuple(fallback_languages)
         self._sparse: Any = None
         if sparse:
             # Importing fastembed pulls in onnxruntime, which is a meaningful
@@ -114,9 +119,13 @@ class QdrantHybridRetriever:
                 models.FieldCondition(key="strategy", match=models.MatchValue(value=strategy))
             )
         if language:
-            conditions.append(
-                models.FieldCondition(key="language", match=models.MatchValue(value=language))
+            languages = [language, *(c for c in self._fallback_languages if c != language)]
+            match: Any = (
+                models.MatchValue(value=language)
+                if len(languages) == 1
+                else models.MatchAny(any=languages)
             )
+            conditions.append(models.FieldCondition(key="language", match=match))
         if document_ids:
             conditions.append(
                 models.FieldCondition(

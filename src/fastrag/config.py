@@ -78,6 +78,10 @@ class Settings(BaseSettings):
     # retrieval, for hosts too small to carry it.
     sparse_retrieval_enabled: bool = True
     retrieval_leg_k: int = 40
+    # Searched in addition to a query's requested language. Leave empty for a corpus
+    # translated into every language (exact filtering); set to the source language
+    # for one indexed once and served through a cross-lingual embedder.
+    retrieval_fallback_languages: str = ""
     retrieval_candidate_k: int = 20
     context_top_k: int = 5
     max_context_tokens: int = 2400
@@ -241,6 +245,13 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def retrieval_fallback_language_list(self) -> list[str]:
+        from .text import normalize_language
+
+        codes = (normalize_language(code) for code in self.retrieval_fallback_languages.split(","))
+        return [code for code in codes if code]
 
     @property
     def guardrail_language_set(self) -> set[str]:
