@@ -85,6 +85,32 @@ gitignored, so production must set `FASTRAG_CALIBRATION_JSON` (declared in
 Blueprint defaults: `FASTRAG_PROFILE=cloud`, `FASTRAG_SPARSE_RETRIEVAL_ENABLED=false`.
 Free instances spin down after ~15 minutes idle.
 
+## API with in-process multilingual models
+
+The pair described in [providers.md](providers.md#multilingual-without-a-hosted-embedder)
+spends no Jina balance, but it peaks at 3.7 GB resident and the weights total about 3.4 GB,
+so it cannot run as a Vercel function or on Render's free instance. Use a Docker host with at
+least 4 GB of memory (Render's 4 GB plan, or your own box). Reranking is CPU-bound - about
+2.2 s for 20 candidates on 16 cores - so expect several seconds per query on a
+two-core instance; lowering `FASTRAG_RETRIEVAL_CANDIDATE_K` trades recall for time.
+
+The image does not bake models in. Set these alongside the variables in that section, and the
+entrypoint fetches the pinned revisions at boot and verifies their checksums before uvicorn
+starts, refusing to serve on a mismatch:
+
+```bash
+FASTRAG_ENVIRONMENT=production
+FASTRAG_DOWNLOAD_MODELS=true
+FASTRAG_DENSE_MODEL_PATH=/models/dense
+FASTRAG_RERANKER_MODEL_PATH=/models/reranker
+FASTRAG_CHUNK_SIZE=150
+```
+
+Without a persistent disk mounted at `/models`, every boot downloads the 3.4 GB again.
+Ingest and calibrate with the identical model variables: the embedding fingerprint covers
+model, revision, checksum and prefixes, and startup rejects an index built with any other.
+`FASTRAG_JINA_API_KEY` is not needed in this configuration.
+
 ## Frontends on Vercel
 
 Use **separate** Vercel projects from the FastAPI API project (do not set Root Directory to
