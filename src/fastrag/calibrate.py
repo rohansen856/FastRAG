@@ -4,7 +4,9 @@ import argparse
 import asyncio
 import json
 import math
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .bootstrap import (
     build_embedder_and_reranker,
@@ -16,7 +18,7 @@ from .bootstrap import (
 from .config import Settings
 from .evaluation import GoldenItem
 from .model_artifacts import verify_configured_models
-from .registry import PostgresIndexRegistry
+from .registry import PostgresIndexRegistry, manifest_centroid
 
 
 def choose_gate(scores: list[tuple[float, bool]]) -> tuple[float, float, float]:
@@ -94,9 +96,42 @@ def choose_offtopic_threshold(similarities: list[float], *, quantile: float = 0.
     return ordered[index]
 
 
+@dataclass(frozen=True, slots=True)
+class CalibrationTarget:
+    content_version: str
+    centroid: list[float] | None
+
+
+async def resolve_target(registry: Any, alias: str, fingerprint: str) -> CalibrationTarget:
+    """The index this run actually scores against, and the centroid that belongs to it.
+
+    `FASTRAG_QDRANT_ALIAS` may name a shadow collection built with `--no-activate`.
+    Reading the *active* index's content version and centroid in that case would
+    pin the thresholds to the corpus still serving, and fit the off-topic gate
+    against a centroid from another corpus - possibly another embedding space of
+    the same dimension, which nothing downstream could detect.
+    """
+    row = await registry.by_collection(alias) or await registry.active()
+    if row is None:
+        raise RuntimeError(f"no registered index behind {alias!r}; ingest first")
+    if row["embedding_fingerprint"] != fingerprint:
+        raise RuntimeError(
+            f"{row['collection_name']} was built with a different embedding fingerprint; "
+            "calibrate with the settings it was ingested with"
+        )
+    centroid = manifest_centroid(row)
+    if centroid is None and row.get("state") == "active":
+        centroid, _ = load_corpus_centroid()
+    return CalibrationTarget(content_version=str(row["content_version"]), centroid=centroid)
+
+
 async def run(args: argparse.Namespace) -> None:
     settings = Settings()
     verify_configured_models(settings)
+    registry = PostgresIndexRegistry(settings.database_url)
+    await registry.initialize()
+    embedding = embedding_fingerprint(settings)
+    target = await resolve_target(registry, settings.qdrant_alias, embedding.digest)
     golden = [
         GoldenItem.model_validate_json(line)
         for line in args.golden.read_text().splitlines()
@@ -139,19 +174,13 @@ async def run(args: argparse.Namespace) -> None:
     cache_threshold = choose_cache_distance(cache_pairs)
 
     offtopic_threshold: float | None = None
-    centroid, _ = load_corpus_centroid()
-    if centroid and answerable_vectors:
-        similarities = [cosine_similarity(vector, centroid) for vector in answerable_vectors]
+    if target.centroid and answerable_vectors:
+        similarities = [cosine_similarity(vector, target.centroid) for vector in answerable_vectors]
         offtopic_threshold = choose_offtopic_threshold(similarities)
 
     # Pin the corpus the thresholds were fitted against, so a later re-index
     # under unchanged models fails loudly at startup instead of serving a new
     # corpus through the old gates.
-    registry = PostgresIndexRegistry(settings.database_url)
-    await registry.initialize()
-    content_version = await registry.active_content_version()
-
-    embedding = embedding_fingerprint(settings)
     artifact = {
         "reranker_threshold": threshold,
         "crag_confident_threshold": confident_threshold,
@@ -165,7 +194,7 @@ async def run(args: argparse.Namespace) -> None:
         "sample_count": len(golden),
         "cache_distance_threshold": cache_threshold,
         "offtopic_threshold": offtopic_threshold,
-        "content_version": content_version,
+        "content_version": target.content_version,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(artifact, indent=2))

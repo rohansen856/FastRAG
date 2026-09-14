@@ -150,6 +150,18 @@ class PostgresIndexRegistry:
             ).fetchone()
             return dict(row) if row else None
 
+    async def by_collection(self, collection_name: str) -> dict[str, Any] | None:
+        """The manifest row for one physical collection, in any state."""
+        return await asyncio.to_thread(self._by_collection_sync, collection_name)
+
+    def _by_collection_sync(self, collection_name: str) -> dict[str, Any] | None:
+        with psycopg.connect(self._database_url, row_factory=dict_row) as connection:
+            row = connection.execute(
+                "SELECT * FROM index_manifests WHERE collection_name=%s",
+                (collection_name,),
+            ).fetchone()
+            return dict(row) if row else None
+
     async def active_content_version(self) -> str:
         active = await self.active()
         if active is None:
@@ -195,18 +207,21 @@ class PostgresIndexRegistry:
 
     def centroid_from_active(self) -> list[float] | None:
         active = self._active_sync()
-        if active is None:
-            return None
-        manifest = active.get("manifest") or {}
-        if isinstance(manifest, str):
-            try:
-                manifest = json.loads(manifest)
-            except json.JSONDecodeError:
-                return None
-        raw = manifest.get("centroid")
-        if not isinstance(raw, list) or not raw:
-            return None
+        return None if active is None else manifest_centroid(active)
+
+
+def manifest_centroid(row: dict[str, Any]) -> list[float] | None:
+    """The off-topic centroid stored on one manifest row, if it has one."""
+    manifest = row.get("manifest") or {}
+    if isinstance(manifest, str):
         try:
-            return [float(value) for value in raw]
-        except (TypeError, ValueError):
+            manifest = json.loads(manifest)
+        except json.JSONDecodeError:
             return None
+    raw = manifest.get("centroid")
+    if not isinstance(raw, list) or not raw:
+        return None
+    try:
+        return [float(value) for value in raw]
+    except (TypeError, ValueError):
+        return None
