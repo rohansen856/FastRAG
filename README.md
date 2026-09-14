@@ -87,12 +87,14 @@ uv run fastrag ingest docs/*.pdf docs/*.md docs/*.txt
 
 The default corpus is FastRAG itself - its docs, its Python source, and its deployment
 config - so the deployed service answers questions about how it works, citing the file and
-line that back each claim. Prose docs are machine translated into five Indic languages so the
-corpus stays genuinely multilingual:
+line that back each claim. It is indexed once in English and served through a cross-lingual
+embedder, so questions in Hindi, Bengali, Tamil, Telugu and Marathi retrieve the same chunks;
+machine-translating the prose docs is the alternative when native-language chunks are wanted
+(see [self-corpus.md](docs/self-corpus.md#multilingual)):
 
 ```bash
 uv run python scripts/ingest-self.py --dry-run      # inspect counts first
-uv run python scripts/ingest-self.py
+uv run python scripts/ingest-self.py --languages ""
 ```
 
 Golden labels are derived rather than written: the generator writes the questions, the

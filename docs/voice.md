@@ -42,8 +42,9 @@ That mode choice has a real retrieval consequence. `translate` means a Hindi que
 searches English chunks, which works well if your corpus is mostly English but throws away
 the Indic-language passages you indexed. `transcribe` keeps the question in its original
 language and relies on the multilingual embedding model to match same-language passages.
-Both corpora are indexed per-language - MSMARCO-XI natively, the self-corpus through machine
-translation of its prose docs - so `transcribe` is the right default for either.
+MSMARCO-XI is indexed per-language, and the self-corpus is English served through a
+cross-lingual embedder with `FASTRAG_RETRIEVAL_FALLBACK_LANGUAGES=en`, so a Hindi transcript
+still reaches it - `transcribe` is the right default for either.
 
 **ElevenLabs Scribe** is available as an alternative via `FASTRAG_STT_PROVIDER=elevenlabs`.
 

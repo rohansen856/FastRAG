@@ -69,11 +69,28 @@ those. `raw_text` is absent when it would equal `text`, and `chunk_id` hashes th
 
 ## Multilingual
 
-The `language` payload filter, the six-language golden split and
-`FASTRAG_GUARDRAIL_LANGUAGES` all assume chunks exist in each language. An English-only
-corpus would leave `language=hi` matching zero points, so the prose docs are machine
-translated into Hindi, Bengali, Tamil, Telugu and Marathi at ingest. MSMARCO-XI is itself a
-machine translation of MS MARCO; this is the same bargain, made explicit.
+The `language` payload filter is an exact match, so an English-only corpus would leave
+`language=hi` matching zero points. There are two ways out, and the script supports both.
+
+**Cross-lingual, the default build.** Index the corpus once in English with a multilingual
+embedder and set `FASTRAG_RETRIEVAL_FALLBACK_LANGUAGES=en`, so a Hindi query searches Hindi
+and English chunks and the embedder matches across the language gap. Nothing is translated
+and no generator quota is spent:
+
+```bash
+uv run python scripts/ingest-self.py --languages "" --skip-eval --no-activate
+```
+
+With the in-process E5 pair in [providers.md](providers.md#multilingual-without-a-hosted-embedder)
+this retrieves the answering section in the top 20 for 46 of 48 test questions across all six
+languages, and it is how the deployed index is built.
+
+**Translated.** Machine-translate the prose docs into Hindi, Bengali, Tamil, Telugu and
+Marathi at ingest, so every language has native chunks and exact filtering works as it does
+on MSMARCO-XI, itself a machine translation of MS MARCO. The cost is generator quota: on
+Groq's free tier the daily token cap makes a full translation pass take days, which is what
+[the quota notes](#provider-quotas-shape-the-run) are about. The rest of this section
+describes that path.
 
 Only prose is translated. A translated identifier answers nothing, and
 `detect_script_language` would read the result as English anyway — which is also why every
@@ -169,8 +186,9 @@ are trivially separable and let `choose_cache_distance` settle on a uselessly pe
 At `FASTRAG_CHUNK_SIZE=400` the English self-corpus yields roughly 90 `sentence` chunks.
 Retrieving the top 20 from 90 is over a fifth of the corpus, so `recall_at_20 >= 0.95` becomes
 nearly free and stops discriminating. Section and AST splitting already multiplies the
-document count; at `FASTRAG_CHUNK_SIZE=150` the English corpus measures 645 `sentence` chunks
-(1,290 across `sentence` and `metadata_aware` together), and roughly twice that once the five
+document count; at `FASTRAG_CHUNK_SIZE=150` the English corpus measures about 650 `sentence`
+chunks (about 1,300 across `sentence` and `metadata_aware` together; the exact count moves
+with every commit, since the corpus is the repository), and roughly twice that once the five
 translations are indexed alongside. Small, but no longer degenerate.
 
 Be honest about the consequence: on a corpus this size, recall@20 is a smoke test. MRR@5,
