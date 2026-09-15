@@ -8,6 +8,7 @@ are enforced identically either way.
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -102,6 +103,54 @@ def check_minimums(
         raise SystemExit("\n".join(f"  - {problem}" for problem in problems))
 
 
+def _absent_ids(ids: list[str], client: Any, collection: str) -> list[str]:
+    found: set[str] = set()
+    for start in range(0, len(ids), 256):
+        points = client.retrieve(
+            collection_name=collection,
+            ids=ids[start : start + 256],
+            with_payload=False,
+            with_vectors=False,
+        )
+        found.update(str(point.id) for point in points)
+    return [point_id for point_id in ids if point_id not in found]
+
+
+def _indexed_commit(client: Any, collection: str) -> str | None:
+    """The commit a collection was built from, as pinned in its citation links."""
+    points, _ = client.scroll(
+        collection_name=collection, limit=1, with_payload=["source_uri"], with_vectors=False
+    )
+    uri = str(points[0].payload.get("source_uri", "")) if points else ""
+    match = re.search(r"/blob/([0-9a-f]{40})/", uri)
+    return match.group(1) if match else None
+
+
+def assert_corpus_in_collection(chunk_ids: list[str], client: Any, collection: str) -> None:
+    """Fail before any scoring if the working tree no longer matches the index.
+
+    Chunk ids are recomputed from the checkout, but the collection was built from
+    one commit. Any edit since - including committing a fix to a file the corpus
+    contains - shifts ids, and every label derived from them would be absent from
+    the index. `assert_labels_in_collection` catches that too, but only after the
+    whole rerank pass has run.
+    """
+    missing = _absent_ids(sorted(set(chunk_ids)), client, collection)
+    if not missing:
+        return
+    commit = _indexed_commit(client, collection)
+    hint = (
+        f"it was indexed from {commit[:12]}; derive from that checkout, e.g. "
+        f"`git worktree add /tmp/indexed {commit[:12]}` and run this script there"
+        if commit
+        else "re-index, or derive from a checkout of the commit it was built from"
+    )
+    raise SystemExit(
+        f"{len(missing)} of {len(set(chunk_ids))} chunks recomputed from this checkout are "
+        f"absent from {collection}: {hint}"
+    )
+
+
 def assert_labels_in_collection(
     rows: list[dict[str, Any]], client: Any, collection: str
 ) -> None:
@@ -114,16 +163,7 @@ def assert_labels_in_collection(
     recall reads as a retrieval regression rather than a stale label.
     """
     wanted = sorted({cid for row in rows for cid in row["relevant_chunk_ids"]})
-    if not wanted:
-        return
-    found: set[str] = set()
-    for start in range(0, len(wanted), 256):
-        batch = wanted[start : start + 256]
-        points = client.retrieve(
-            collection_name=collection, ids=batch, with_payload=False, with_vectors=False
-        )
-        found.update(str(point.id) for point in points)
-    missing = [cid for cid in wanted if cid not in found]
+    missing = _absent_ids(wanted, client, collection)
     if missing:
         raise SystemExit(
             f"{len(missing)} of {len(wanted)} labelled chunks are absent from "

@@ -511,3 +511,30 @@ async def test_failed_batch_retries_its_members_individually(tmp_path: Path) -> 
     # One failed batch, then three successful singles: nothing is lost.
     assert len(result) == 3
     assert errors == []
+
+
+class _Collection:
+    """The two Qdrant calls the corpus check makes, over a fixed set of point ids."""
+
+    def __init__(self, ids: set[str], commit: str) -> None:
+        self.ids = ids
+        self.commit = commit
+
+    def retrieve(self, *, collection_name: str, ids: list[str], **_: object) -> list[object]:
+        return [type("Point", (), {"id": point})() for point in ids if point in self.ids]
+
+    def scroll(self, **_: object) -> tuple[list[object], None]:
+        uri = f"https://github.com/o/r/blob/{self.commit}/docs/crag.md#L1-L9"
+        return [type("Point", (), {"payload": {"source_uri": uri}})()], None
+
+
+def test_corpus_drift_is_caught_before_any_scoring() -> None:
+    """Deriving from a working tree edited since indexing must fail up front, naming the fix."""
+    from selfcorpus.evalsets import assert_corpus_in_collection
+
+    indexed = "a" * 40
+    client = _Collection({"one", "two"}, indexed)
+    assert_corpus_in_collection(["one", "two"], client, "kb_x")
+    with pytest.raises(SystemExit, match=f"indexed from {indexed[:12]}") as failure:
+        assert_corpus_in_collection(["one", "three"], client, "kb_x")
+    assert "git worktree add" in str(failure.value)

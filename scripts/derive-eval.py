@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from selfcorpus import derive, sources  # noqa: E402
 from selfcorpus import golden as golden_mod  # noqa: E402
 from selfcorpus.evalsets import (  # noqa: E402
+    assert_corpus_in_collection,
     assert_labels_in_collection,
     assert_labels_indexed,
     check_minimums,
@@ -69,6 +70,17 @@ async def main(args: argparse.Namespace) -> int:
             seen.add(payload["chunk_id"])
             chunks.append(payload)
     print(f"{len(documents)} documents -> {len(chunks)} chunks", flush=True)
+    if args.collection:
+        from fastrag.adapters.retrieval import connect_qdrant
+
+        assert_corpus_in_collection(
+            [str(payload["chunk_id"]) for payload in chunks],
+            connect_qdrant(
+                settings.qdrant_url,
+                settings.qdrant_api_key.get_secret_value() if settings.qdrant_api_key else None,
+            ),
+            args.collection,
+        )
 
     key_by_id = {d.document_id: str(d.metadata["document_key"]) for d in documents}
     chunk_index = golden_mod.chunk_ids_by_document(
