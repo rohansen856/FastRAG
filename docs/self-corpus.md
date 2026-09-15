@@ -314,7 +314,10 @@ uv run python scripts/ingest-self.py --activate <version> # flip the alias
 ```
 
 Qdrant accepts a collection name wherever an alias is expected, which is what lets calibration
-read the shadow collection. The centroid is staged to
+read the shadow collection. Calibration then takes the content version and off-topic centroid
+of *that* collection from the registry, and refuses one built with different models; taking
+the active index's instead would pin the thresholds to the corpus still serving, and fit the
+off-topic gate against another corpus's centroid. The centroid is staged to
 `config/corpus_centroid.staged.json` and only moved into place when the alias flips — without
 that, restarting the API mid-sequence would pick up the new centroid against the old
 threshold and mark every query off-topic.
