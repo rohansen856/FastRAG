@@ -15,13 +15,17 @@ class FastEmbedder:
         document_prefix: str = "",
         normalize: bool = True,
         model_path: Path | None = None,
+        providers: list[str] | None = None,
     ) -> None:
         from fastembed import TextEmbedding
 
+        # Only pass `providers` when set, so the default stays FastEmbed's own choice.
+        placement: dict[str, Any] = {"providers": providers} if providers else {}
         self._model: Any = TextEmbedding(
             model_name=model_id,
             specific_model_path=str(model_path) if model_path else None,
             local_files_only=model_path is not None,
+            **placement,
         )
         self._query_prefix = query_prefix
         # Asymmetric models such as E5 are trained with a marker on both sides

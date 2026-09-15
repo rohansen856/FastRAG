@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     reranker_sha256: str = "set-in-production"
     reranker_model_path: Path | None = None
     reranker_model_file: str = "onnx/model.onnx"
+    # ONNX Runtime providers for the in-process models, e.g.
+    # "CUDAExecutionProvider,CPUExecutionProvider". Empty keeps FastEmbed's default.
+    dense_execution_providers: str = ""
+    reranker_execution_providers: str = ""
+    reranker_batch_size: int = 64
 
     jina_api_key: SecretStr | None = None
     jina_base_url: str = "https://api.jina.ai/v1"
@@ -263,6 +268,14 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property
+    def dense_execution_provider_list(self) -> list[str] | None:
+        return _provider_list(self.dense_execution_providers)
+
+    @property
+    def reranker_execution_provider_list(self) -> list[str] | None:
+        return _provider_list(self.reranker_execution_providers)
+
+    @property
     def retrieval_fallback_language_list(self) -> list[str]:
         from .text import normalize_language
 
@@ -273,6 +286,11 @@ class Settings(BaseSettings):
     def guardrail_language_set(self) -> set[str]:
         codes = self.guardrail_languages.split(",")
         return {code.strip().casefold() for code in codes if code.strip()}
+
+
+def _provider_list(raw: str) -> list[str] | None:
+    providers = [name.strip() for name in raw.split(",") if name.strip()]
+    return providers or None
 
 
 @lru_cache

@@ -214,14 +214,26 @@ class QdrantHybridRetriever:
 
 
 class FastEmbedReranker:
-    def __init__(self, model_id: str, *, model_path: Path | None = None) -> None:
+    def __init__(
+        self,
+        model_id: str,
+        *,
+        model_path: Path | None = None,
+        providers: list[str] | None = None,
+        batch_size: int = 64,
+    ) -> None:
         from fastembed.rerank.cross_encoder import TextCrossEncoder
 
+        placement: dict[str, Any] = {"providers": providers} if providers else {}
         self._model: Any = TextCrossEncoder(
             model_name=model_id,
             specific_model_path=str(model_path) if model_path else None,
             local_files_only=model_path is not None,
+            **placement,
         )
+        # A batch is padded to its longest pair. Code chunks vary widely in token
+        # length, so for a large cross-encoder small batches do less work overall.
+        self._batch_size = batch_size
 
     async def rerank(
         self,
@@ -234,7 +246,11 @@ class FastEmbedReranker:
         if not candidates:
             return []
         scores = await asyncio.to_thread(
-            lambda: list(self._model.rerank(query, [chunk.text for chunk in candidates]))
+            lambda: list(
+                self._model.rerank(
+                    query, [chunk.text for chunk in candidates], batch_size=self._batch_size
+                )
+            )
         )
         ranked = sorted(
             (
@@ -250,5 +266,7 @@ class FastEmbedReranker:
         """Raw relevance scores, used by CRAG strip refinement."""
         if not texts:
             return []
-        scores = await asyncio.to_thread(lambda: list(self._model.rerank(query, list(texts))))
+        scores = await asyncio.to_thread(
+            lambda: list(self._model.rerank(query, list(texts), batch_size=self._batch_size))
+        )
         return [float(score) for score in scores]

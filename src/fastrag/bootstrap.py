@@ -82,6 +82,7 @@ def build_embedder_and_reranker(settings: Settings) -> tuple[Any, Any]:
             document_prefix=settings.dense_document_prefix,
             normalize=settings.dense_normalize,
             model_path=settings.dense_model_path,
+            providers=settings.dense_execution_provider_list,
         )
 
     if settings.active_reranker_provider == "jina":
@@ -100,7 +101,10 @@ def build_embedder_and_reranker(settings: Settings) -> tuple[Any, Any]:
         from .adapters.retrieval import FastEmbedReranker
 
         reranker = FastEmbedReranker(
-            settings.reranker_model_id, model_path=settings.reranker_model_path
+            settings.reranker_model_id,
+            model_path=settings.reranker_model_path,
+            providers=settings.reranker_execution_provider_list,
+            batch_size=settings.reranker_batch_size,
         )
     return embedder, reranker
 
