@@ -123,6 +123,10 @@ class Settings(BaseSettings):
 
     guardrails_enabled: bool = True
     guardrail_offtopic_margin: float = 0.12
+    # The centroid gate assumes on-topic queries sit measurably closer to the corpus
+    # centroid than off-topic ones. Anisotropic embedders such as E5 score almost any
+    # text near 0.8, so there the reranker, not the centroid, has to reject off-topic.
+    guardrail_offtopic_enabled: bool = True
     guardrail_languages: str = "en,hi,bn,ta,te,mr"
 
     cache_ttl_seconds: int = 604_800

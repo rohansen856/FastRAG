@@ -195,6 +195,11 @@ def load_corpus_centroid(path: Path = CENTROID_PATH) -> tuple[list[float] | None
     return centroid, threshold
 
 
+def offtopic_centroid(settings: Settings, centroid: list[float] | None) -> list[float] | None:
+    """The centroid the off-topic gate compares against, or None to switch it off."""
+    return centroid if settings.guardrail_offtopic_enabled else None
+
+
 async def build_pipeline(settings: Settings) -> tuple[QueryPipeline, RedisAnswerCache]:
     observability.configure(settings)
     embedding = embedding_fingerprint(settings)
@@ -248,7 +253,7 @@ async def build_pipeline(settings: Settings) -> tuple[QueryPipeline, RedisAnswer
     guardrails = Guardrails(
         enabled=settings.guardrails_enabled,
         languages=settings.guardrail_language_set,
-        corpus_centroid=centroid,
+        corpus_centroid=offtopic_centroid(settings, centroid),
         offtopic_threshold=(
             calibration.offtopic_threshold
             if calibration.offtopic_threshold is not None
