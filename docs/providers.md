@@ -59,7 +59,11 @@ kernel on a 15 GB machine.
 Measured on the self-corpus's 437 English sections, with eight questions about FastRAG asked
 in each language, E5 put the section that answers the question in the top 20 for 46 of 48
 queries and at rank 1 for at least six of eight in every language. The two misses were
-Tamil and Marathi phrasings of one guardrail question.
+Tamil and Marathi phrasings of one guardrail question. Through the full path - language
+filter with the English fallback, then the local reranker against the calibrated abstention
+threshold - the same questions were answered 7/8 in English, 8/8 in Hindi, 7/8 in Bengali,
+Telugu and Marathi, and 4/8 in Tamil, where the reranker is least confident; the answering
+section was in the reranked top five for 45 of 48.
 
 Details that matter:
 
@@ -75,10 +79,22 @@ Details that matter:
 - **Checksum the weights, not the graph.** E5's ONNX export keeps 2.2 GB of weights in
   `model.onnx_data` beside a 0.5 MB `model.onnx`. Production verifies the file named by
   `FASTRAG_DENSE_MODEL_FILE`, so it names the weights.
-- **It costs memory and CPU.** Both models together peak at 3.7 GB resident. On 16 CPU
-  cores, embedding a query takes 50-90 ms and reranking 20 candidates about 2.2 s, and
-  reranking scales roughly with core count. That rules out Vercel functions and Render's
-  free instance; see [deployment.md](deployment.md).
+- **Switch off the centroid off-topic gate.** E5 embeddings are anisotropic: almost any text
+  scores about 0.8 cosine against the corpus centroid. Measured on the self-corpus, questions
+  about FastRAG scored 0.787-0.831 and questions such as "what is the capital of France?"
+  up to 0.828, so no threshold separates them; the calibrated 0.826 refused three of eight
+  English and five to seven of eight Indic questions. The reranker does separate them - 18
+  off-topic questions across the six languages scored at most -1.85 against an abstention
+  threshold of 0.26 - so set `FASTRAG_GUARDRAIL_OFFTOPIC_ENABLED=false` and let abstention
+  return `no_answer` for off-topic input. The injection and language guardrails are
+  unaffected.
+- **It costs memory, and CPU reranking is slow.** Both models together peak at 3.7 GB
+  resident; embedding a query takes 50-90 ms. Reranking 20 real self-corpus chunks - pairs
+  of up to 658 tokens, because code tokenises long - took 8.5 s on 16 CPU cores at
+  FastEmbed's default batch of 64 and 5.4 s with `FASTRAG_RERANKER_BATCH_SIZE=1`, since a
+  batch is padded to its longest pair. On an RTX 3050 Ti it took 0.47 s, with scores within
+  0.0011 of the CPU run and an identical ranking. That rules out Vercel functions and
+  Render's free instance; see [deployment.md](deployment.md).
 - **Licence.** `jina-reranker-v2-base-multilingual` is published under CC BY-NC 4.0. Running
   the weights yourself is non-commercial use only; the hosted Jina API is the licensed route
   for commercial deployments. E5 is MIT.

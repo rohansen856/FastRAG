@@ -90,9 +90,12 @@ Free instances spin down after ~15 minutes idle.
 The pair described in [providers.md](providers.md#multilingual-without-a-hosted-embedder)
 spends no Jina balance, but it peaks at 3.7 GB resident and the weights total about 3.4 GB,
 so it cannot run as a Vercel function or on Render's free instance. Use a Docker host with at
-least 4 GB of memory (Render's 4 GB plan, or your own box). Reranking is CPU-bound - about
-2.2 s for 20 candidates on 16 cores - so expect several seconds per query on a
-two-core instance; lowering `FASTRAG_RETRIEVAL_CANDIDATE_K` trades recall for time.
+least 4 GB of memory (Render's 4 GB plan, or your own box). Reranking dominates latency:
+5.4 s for 20 candidates on 16 CPU cores with `FASTRAG_RERANKER_BATCH_SIZE=1`, and it scales
+with cores, so a two-core instance would approach the 60 s request deadline. Prefer a host
+with a GPU (`FASTRAG_RERANKER_EXECUTION_PROVIDERS=CUDAExecutionProvider`, 0.47 s on an
+RTX 3050 Ti, which needs the `onnxruntime-gpu` wheel in place of `onnxruntime`), or lower
+`FASTRAG_RETRIEVAL_CANDIDATE_K`, which trades recall for time.
 
 The image does not bake models in. Set these alongside the variables in that section, and the
 entrypoint fetches the pinned revisions at boot and verifies their checksums before uvicorn
@@ -104,6 +107,8 @@ FASTRAG_DOWNLOAD_MODELS=true
 FASTRAG_DENSE_MODEL_PATH=/models/dense
 FASTRAG_RERANKER_MODEL_PATH=/models/reranker
 FASTRAG_CHUNK_SIZE=150
+FASTRAG_RERANKER_BATCH_SIZE=1
+FASTRAG_GUARDRAIL_OFFTOPIC_ENABLED=false
 ```
 
 Without a persistent disk mounted at `/models`, every boot downloads the 3.4 GB again.
