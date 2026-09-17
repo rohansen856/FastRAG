@@ -49,6 +49,12 @@ class CragOutcome:
     should_abstain: bool
 
 
+# A ceiling, not a cost: short rewrites use what they need. Reasoning models such as
+# gpt-oss spend part of it before answering, and Indic scripts tokenise long - at 200
+# a Tamil rewrite returned no JSON at all and CRAG silently abstained.
+REWRITE_MAX_TOKENS = 800
+
+
 class CorrectiveRetrieval:
     def __init__(
         self,
@@ -309,7 +315,7 @@ class CorrectiveRetrieval:
             user=f"Question: {query}",
             schema=REWRITE_SCHEMA,
             schema_name="query_rewrite",
-            max_tokens=200,
+            max_tokens=REWRITE_MAX_TOKENS,
             deadline=deadline,
         )
         return str(result.get("rewritten_query", "")).strip()
