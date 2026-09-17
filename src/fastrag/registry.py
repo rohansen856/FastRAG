@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from datetime import UTC, datetime
 from typing import Any
 
@@ -130,7 +130,10 @@ class PostgresIndexRegistry:
         stored["chunk_strategies"] = tuple(stored.get("chunk_strategies") or ())
         stored["languages"] = tuple(stored.get("languages") or ())
         stored["state"] = str(row["state"])
-        return IndexManifest(**stored)
+        # The stored JSON also carries keys the dataclass does not declare, such as
+        # the `centroid` written by `store_centroid` once a build has vectors.
+        declared = {field.name for field in fields(IndexManifest)}
+        return IndexManifest(**{key: value for key, value in stored.items() if key in declared})
 
     def _manifest_sync(self, index_version: str) -> dict[str, Any] | None:
         with psycopg.connect(self._database_url, row_factory=dict_row) as connection:
