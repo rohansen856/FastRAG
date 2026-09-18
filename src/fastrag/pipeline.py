@@ -509,6 +509,16 @@ class QueryPipeline:
 
         answer = " ".join(answer_chunks)
         citations = citation_buffer.citations()
+        if not answer.strip() or not citations:
+            # A reasoning model can spend its whole budget thinking and emit nothing.
+            # An empty or uncited result is not an answer, and must not be cached as one.
+            if state.trace is not None:
+                state.trace.abstention_reason = "Generator returned no cited content"
+            async for event in self._no_answer(
+                state, namespace, query, vector, active_index.content_version, effective
+            ):
+                yield event
+            return
         await self._cache_write(
             namespace,
             query,

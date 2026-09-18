@@ -79,3 +79,17 @@ async def test_context_budget_is_enforced(chunk):
     pipeline._config.max_context_tokens = 1
     response = await pipeline.run("Question")
     assert response.outcome is Outcome.NO_ANSWER
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scoped", [False, True])
+async def test_empty_generation_abstains_instead_of_answering(chunk, scoped):
+    """A reasoning model can spend its whole budget thinking and emit no content.
+
+    That once came back as `answered` with an empty answer and no citations.
+    """
+    pipeline, cache = make_pipeline(chunk, output="")
+    response = await pipeline.run("Question", **({"document_id": "doc-1"} if scoped else {}))
+    assert response.outcome is Outcome.NO_ANSWER
+    assert response.answer == NO_ANSWER_TEXT
+    assert not any(write["semantic"] for write in cache.writes)
