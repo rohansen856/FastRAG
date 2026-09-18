@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
@@ -22,6 +23,23 @@ from ..metrics import FALLBACKS, RETRIES
 
 class GeneratorError(RuntimeError):
     pass
+
+
+_MARKER_LIKE_RE = re.compile(r"\[(\s*)C:")
+_SOURCE_TAG_RE = re.compile(r"<(/?)source\b", re.IGNORECASE)
+
+
+def inert_source_text(text: str) -> str:
+    """Stop source text from reading as prompt structure.
+
+    A corpus that documents this prompt - the self-corpus does - contains literal
+    `[C:id]` markers and `<source>` tags. Verbatim, the model copies the marker as
+    a citation (an unknown id fails the request closed) and a chunk can open a
+    forged source. U+2236 looks like a colon to a reader and matches no marker
+    pattern; the tag is entity-escaped.
+    """
+    text = _MARKER_LIKE_RE.sub(lambda match: f"[{match.group(1)}C\u2236", text)
+    return _SOURCE_TAG_RE.sub(lambda match: f"&lt;{match.group(1)}source", text)
 
 
 class OpenAICompatibleGenerator:
@@ -58,7 +76,8 @@ class OpenAICompatibleGenerator:
         # `context_of` widens sentence-window and hierarchical chunks to the span
         # they were indexed to stand in for.
         context = "\n\n".join(
-            f'<source id="{chunk.chunk_id}">\n{context_of(chunk)}\n</source>' for chunk in contexts
+            f'<source id="{chunk.chunk_id}">\n{inert_source_text(context_of(chunk))}\n</source>'
+            for chunk in contexts
         )
         return {
             "model": self._model,
