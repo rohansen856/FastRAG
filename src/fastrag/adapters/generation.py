@@ -56,8 +56,14 @@ class OpenAICompatibleGenerator:
         timeout_seconds: float,
         harness: ProviderHarness | None = None,
         provider_name: str = "generator",
+        reasoning_effort: str | None = None,
     ) -> None:
         self._url = f"{base_url.rstrip('/')}/chat/completions"
+        # Reasoning models (gpt-oss) otherwise spend the whole token budget on hidden
+        # reasoning and return empty content. Other models reject the field.
+        self._reasoning: dict[str, Any] = (
+            {"reasoning_effort": reasoning_effort} if reasoning_effort else {}
+        )
         self._model = model
         self._system_prompt = system_prompt
         self._max_tokens = max_tokens
@@ -85,6 +91,7 @@ class OpenAICompatibleGenerator:
             "max_tokens": self._max_tokens,
             "stream": True,
             "stream_options": {"include_usage": True},
+            **self._reasoning,
             "messages": [
                 {"role": "system", "content": self._system_prompt},
                 {
@@ -188,6 +195,7 @@ class OpenAICompatibleGenerator:
                 "type": "json_schema",
                 "json_schema": {"name": schema_name, "schema": schema, "strict": True},
             },
+            **self._reasoning,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},

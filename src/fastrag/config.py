@@ -106,6 +106,9 @@ class Settings(BaseSettings):
     llm_api_key: SecretStr = SecretStr("not-configured")
     llm_model: str = "configured-at-deploy"
     llm_timeout_seconds: float = 20.0
+    # "low" | "medium" | "high" for reasoning models such as openai/gpt-oss-*; unset
+    # sends nothing, which non-reasoning models require.
+    llm_reasoning_effort: str | None = None
     llm_fallback_base_url: str | None = None
     llm_fallback_api_key: SecretStr | None = None
     llm_fallback_model: str | None = None

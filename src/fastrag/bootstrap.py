@@ -132,6 +132,7 @@ def build_generator(settings: Settings) -> Any:
         timeout_seconds=settings.effective_llm_timeout_seconds,
         harness=harness_from_settings("generator", settings),
         provider_name="generator",
+        reasoning_effort=settings.llm_reasoning_effort,
     )
     if not (settings.llm_fallback_base_url and settings.llm_fallback_model):
         return primary
