@@ -27,6 +27,9 @@ services:
         value: https://api.groq.com/openai/v1
       - key: FASTRAG_LLM_MODEL
         value: openai/gpt-oss-20b
+      # gpt-oss otherwise spends max_tokens on hidden reasoning and returns nothing.
+      - key: FASTRAG_LLM_REASONING_EFFORT
+        value: low
       # Groq free is 30 RPM; the harness retries 429s but a second provider
       # keeps the demo alive when the minute budget is gone.
       - key: FASTRAG_LLM_FALLBACK_BASE_URL
