@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     dense_execution_providers: str = ""
     reranker_execution_providers: str = ""
     reranker_batch_size: int = 64
+    dense_batch_size: int | None = None
 
     jina_api_key: SecretStr | None = None
     jina_base_url: str = "https://api.jina.ai/v1"

@@ -83,6 +83,7 @@ def build_embedder_and_reranker(settings: Settings) -> tuple[Any, Any]:
             normalize=settings.dense_normalize,
             model_path=settings.dense_model_path,
             providers=settings.dense_execution_provider_list,
+            batch_size=settings.dense_batch_size,
         )
 
     if settings.active_reranker_provider == "jina":

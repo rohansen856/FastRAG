@@ -74,3 +74,28 @@ def test_execution_settings_parse_to_lists() -> None:
         "CPUExecutionProvider",
     ]
     assert settings.dense_execution_provider_list is None
+
+
+class _PassageRecorder:
+    def __init__(self, **_: object) -> None:
+        self.batch_sizes: list[object] = []
+
+    def passage_embed(self, texts: list[str], **kwargs: object):
+        self.batch_sizes.append(kwargs.get("batch_size"))
+        return [[1.0] for _ in texts]
+
+
+@pytest.mark.asyncio
+async def test_embedder_batch_size_is_passed_only_when_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Twenty-four 512-token passages at once exhausted a 4 GB GPU holding E5."""
+    import fastembed
+
+    monkeypatch.setattr(fastembed, "TextEmbedding", _PassageRecorder)
+    small = FastEmbedder("model", batch_size=4)
+    await small.embed_documents(["a", "b"])
+    assert small._model.batch_sizes == [4]  # noqa: SLF001
+    default = FastEmbedder("model")
+    await default.embed_documents(["a"])
+    assert default._model.batch_sizes == [None]  # noqa: SLF001

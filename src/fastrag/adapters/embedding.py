@@ -16,6 +16,7 @@ class FastEmbedder:
         normalize: bool = True,
         model_path: Path | None = None,
         providers: list[str] | None = None,
+        batch_size: int | None = None,
     ) -> None:
         from fastembed import TextEmbedding
 
@@ -32,6 +33,9 @@ class FastEmbedder:
         # ("query: " / "passage: "); omitting the passage one measurably hurts recall.
         self._document_prefix = document_prefix
         self._normalize = normalize
+        # Unset keeps FastEmbed's default. A GPU holding E5's 2.2 GB of weights has too
+        # little left for the attention buffers of 24 long passages at once.
+        self._batching: dict[str, Any] = {"batch_size": batch_size} if batch_size else {}
 
     async def embed_query(self, query: str, *, deadline: object = None) -> list[float]:
         vectors = await asyncio.to_thread(
@@ -46,7 +50,9 @@ class FastEmbedder:
             return []
         vectors = await asyncio.to_thread(
             lambda: list(
-                self._model.passage_embed([self._document_prefix + text for text in documents])
+                self._model.passage_embed(
+                    [self._document_prefix + text for text in documents], **self._batching
+                )
             )
         )
         return [self._as_list(vector) for vector in vectors]

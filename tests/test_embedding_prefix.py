@@ -31,6 +31,7 @@ def _embedder(model: _EchoModel, **prefixes: str) -> FastEmbedder:
     embedder._query_prefix = prefixes.get("query_prefix", "")  # type: ignore[attr-defined]
     embedder._document_prefix = prefixes.get("document_prefix", "")  # type: ignore[attr-defined]
     embedder._normalize = True  # type: ignore[attr-defined]
+    embedder._batching = {}  # type: ignore[attr-defined]
     return embedder
 
 
