@@ -204,7 +204,7 @@ async def build(args: argparse.Namespace) -> int:
 
     registry = PostgresIndexRegistry(settings.database_url)
     await registry.initialize()
-    builder = build_index_builder(settings, registry)
+    builder = build_index_builder(settings, registry, embedder=embedder)
     manifest = await builder.build_from_chunks(
         chunks, content_version=digest.hexdigest(), version=args.index_version
     )

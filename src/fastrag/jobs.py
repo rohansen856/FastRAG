@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 from .bootstrap import build_embedder_and_reranker, embedding_fingerprint
 from .config import Settings
@@ -14,8 +15,13 @@ def rebuild_documents() -> dict[str, str]:
     return asyncio.run(_rebuild_documents())
 
 
-def build_index_builder(settings: Settings, registry: PostgresIndexRegistry) -> IndexBuilder:
-    embedder, _ = build_embedder_and_reranker(settings)
+def build_index_builder(
+    settings: Settings, registry: PostgresIndexRegistry, *, embedder: Any = None
+) -> IndexBuilder:
+    # Callers that already loaded the models pass their embedder in: loading the
+    # pair again doubles peak memory for in-process models.
+    if embedder is None:
+        embedder, _ = build_embedder_and_reranker(settings)
     return IndexBuilder(
         qdrant_url=settings.qdrant_url,
         qdrant_api_key=(
