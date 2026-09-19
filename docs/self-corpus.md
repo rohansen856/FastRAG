@@ -94,7 +94,10 @@ uv run python scripts/ingest-self.py --languages "" --skip-eval --no-activate
 
 With the in-process E5 pair in [providers.md](providers.md#multilingual-without-a-hosted-embedder)
 this retrieves the answering section in the top 20 for 46 of 48 test questions across all six
-languages, and it is how the deployed index is built.
+languages. The Vercel deployment uses the same cross-lingual build with Jina's hosted
+`jina-embeddings-v3`, because a serverless function cannot hold the in-process models; the
+index must then be embedded through the same API the service queries with, since the
+embedding fingerprint distinguishes a hosted model from a local copy of the same weights.
 
 **Translated.** Machine-translate the prose docs into Hindi, Bengali, Tamil, Telugu and
 Marathi at ingest, so every language has native chunks and exact filtering works as it does
