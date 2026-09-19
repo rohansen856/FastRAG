@@ -67,6 +67,17 @@ for one chunk — still render collapsed, and the line-anchored `source_uri` is 
 those. `raw_text` is absent when it would equal `text`, and `chunk_id` hashes the
 *normalised* text, so adding the field changed no chunk ids.
 
+### The corpus contains the prompt's own markup
+
+A corpus about FastRAG documents how FastRAG prompts: `citations.py`, `generation.py`, the
+architecture doc and the smoke scripts all contain literal `[C:chunk_id]` markers and
+`<source id="...">` tags - eight indexed chunks at the time of writing. Passed through
+verbatim, the model copied a marker it found inside a source, the validator rejected an id
+that named no source, and the request failed closed with a 503; a chunk of `generation.py`
+could also have opened a forged source. Source text is therefore made inert before it
+reaches the prompt: `[C:` becomes `[C∶` (U+2236, which matches no marker pattern) and
+`<source` is entity-escaped. Chunk text, ids and displayed excerpts are unchanged.
+
 ## Multilingual
 
 The `language` payload filter is an exact match, so an English-only corpus would leave
