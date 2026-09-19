@@ -95,6 +95,14 @@ Details that matter:
   batch is padded to its longest pair. On an RTX 3050 Ti it took 0.47 s, with scores within
   0.0011 of the CPU run and an identical ranking. That rules out Vercel functions and
   Render's free instance; see [deployment.md](deployment.md).
+- **Offline work belongs on a GPU if you have one.** Ingest, `derive-eval.py` and calibration
+  rerank or embed hundreds of texts. With `onnxruntime-gpu` installed in place of
+  `onnxruntime`, set `FASTRAG_DENSE_EXECUTION_PROVIDERS` or
+  `FASTRAG_RERANKER_EXECUTION_PROVIDERS` to `CUDAExecutionProvider`, one model per card on
+  4 GB: E5's weights take 2.2 GB, and `FASTRAG_DENSE_BATCH_SIZE=4` /
+  `FASTRAG_RERANKER_BATCH_SIZE=4` keep attention buffers inside what is left. Deriving the
+  evaluation sets took 71 minutes on 16 CPU cores and 16 minutes with the reranker on an
+  RTX 3050 Ti.
 - **Licence.** `jina-reranker-v2-base-multilingual` is published under CC BY-NC 4.0. Running
   the weights yourself is non-commercial use only; the hosted Jina API is the licensed route
   for commercial deployments. E5 is MIT.
