@@ -118,6 +118,28 @@ Acceptance criteria for any provider:
 - keeps p95 TTFT under the service SLO at target concurrency;
 - passes the golden evaluation thresholds with the production prompt.
 
+### Reasoning models
+
+`openai/gpt-oss-*` (the Groq default) reasons before it answers, and the reasoning tokens
+count against `max_tokens`. On a self-corpus question about deploying to Render, the default
+effort spent all 800 answer tokens reasoning and returned no content at all
+(`finish_reason=length`); with `FASTRAG_LLM_REASONING_EFFORT=low` it used 63 characters of
+reasoning and produced a full answer. The same starvation hit the 200-token CRAG rewrite for
+a Tamil question. The setting is sent on both answers and structured completions, and only
+when set - models without reasoning reject the field.
+
+An empty or uncited generation is returned as `no_answer`, never as `answered`.
+
+### Citation compliance
+
+Every sentence must carry a `[C:chunk_id]` marker, and the validator fails closed. Models
+drift from that on long, multi-step answers: they cite bare ids, or collect every marker at
+the end. Prompt `v2` shows the per-sentence form by example; replaying the same retrieved
+contexts through `openai/gpt-oss-20b`, it raised validated answers from 5 to 10 of 11 across
+English, Hindi, Bengali, Telugu and Marathi, with no question lost. Long English how-to
+answers remain the weakest case - count citation abstentions in the trace
+(`abstention_reason`) before blaming retrieval.
+
 ## Provider change checklist
 
 1. Set the new provider env vars in a separate release.
