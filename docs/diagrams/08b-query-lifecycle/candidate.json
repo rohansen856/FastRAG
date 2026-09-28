@@ -1,0 +1,326 @@
+{
+  "schema_version": 2,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Query lifecycle — outcome of one request",
+    "output": "docs/diagrams/08b-query-lifecycle/query-lifecycle.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/rohansen856/FastRAG",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "41815d092f442e8bf4b91fb93c52bed8b1ec44f9"
+    }
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Pipeline stages"
+    },
+    {
+      "id": "detour",
+      "label": "Cache and CRAG detours"
+    },
+    {
+      "id": "terminal",
+      "label": "Outcomes"
+    }
+  ],
+  "states": [
+    {
+      "id": "received",
+      "type": "start",
+      "label": "Received",
+      "sublabel": "auth · overrides · scope",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "sources": [
+        {
+          "path": "src/fastrag/api.py",
+          "line": 185,
+          "end_line": 200
+        },
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 147,
+          "end_line": 214
+        }
+      ]
+    },
+    {
+      "id": "guarded",
+      "type": "decision",
+      "label": "Guarded",
+      "sublabel": "text rules · index · caches",
+      "lane": "main",
+      "col": 1,
+      "step": "02",
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 216,
+          "end_line": 251
+        },
+        {
+          "path": "src/fastrag/guardrails.py",
+          "line": 110,
+          "end_line": 154
+        }
+      ]
+    },
+    {
+      "id": "retrieved",
+      "type": "active",
+      "label": "Retrieved",
+      "sublabel": "embed · hybrid top 20",
+      "lane": "main",
+      "col": 2,
+      "step": "03",
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 297,
+          "end_line": 387
+        }
+      ]
+    },
+    {
+      "id": "graded",
+      "type": "decision",
+      "label": "Graded",
+      "sublabel": "rerank · CRAG bands",
+      "lane": "main",
+      "col": 3,
+      "step": "04",
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 389,
+          "end_line": 438
+        },
+        {
+          "path": "src/fastrag/crag.py",
+          "line": 85,
+          "end_line": 160
+        }
+      ]
+    },
+    {
+      "id": "generating",
+      "type": "active",
+      "label": "Generating",
+      "sublabel": "sentence citations checked",
+      "lane": "main",
+      "col": 4,
+      "step": "05",
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 440,
+          "end_line": 529
+        }
+      ]
+    },
+    {
+      "id": "cached",
+      "type": "success",
+      "label": "Cached answer",
+      "sublabel": "exact or semantic hit",
+      "lane": "detour",
+      "col": 1,
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 268,
+          "end_line": 295
+        },
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 333,
+          "end_line": 359
+        },
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 601,
+          "end_line": 614
+        }
+      ]
+    },
+    {
+      "id": "rewrite",
+      "type": "waiting",
+      "label": "Rewrite once",
+      "sublabel": "re-embed · re-retrieve",
+      "lane": "detour",
+      "col": 3,
+      "sources": [
+        {
+          "path": "src/fastrag/crag.py",
+          "line": 244,
+          "end_line": 315
+        }
+      ]
+    },
+    {
+      "id": "unavailable",
+      "type": "failure",
+      "label": "Unavailable",
+      "sublabel": "HTTP 503 · SSE error",
+      "lane": "terminal",
+      "col": 0,
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 660,
+          "end_line": 682
+        },
+        {
+          "path": "src/fastrag/api.py",
+          "line": 179,
+          "end_line": 183
+        }
+      ]
+    },
+    {
+      "id": "refused",
+      "type": "failure",
+      "label": "refused",
+      "sublabel": "never cached",
+      "lane": "terminal",
+      "col": 1,
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 616,
+          "end_line": 633
+        }
+      ]
+    },
+    {
+      "id": "noanswer",
+      "type": "neutral",
+      "label": "no_answer",
+      "sublabel": "fixed sentence · cached",
+      "lane": "terminal",
+      "col": 3,
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 635,
+          "end_line": 658
+        }
+      ]
+    },
+    {
+      "id": "answered",
+      "type": "success",
+      "label": "answered",
+      "sublabel": "cited · cache write",
+      "lane": "terminal",
+      "col": 4,
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 530,
+          "end_line": 548
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "from": "received",
+      "to": "guarded",
+      "label": "text ok"
+    },
+    {
+      "from": "guarded",
+      "to": "retrieved",
+      "label": "cache miss"
+    },
+    {
+      "from": "retrieved",
+      "to": "graded",
+      "label": "candidates"
+    },
+    {
+      "from": "graded",
+      "to": "generating",
+      "label": "confident",
+      "variant": "emphasis"
+    },
+    {
+      "from": "generating",
+      "to": "answered",
+      "label": "all cited",
+      "variant": "emphasis"
+    },
+    {
+      "from": "received",
+      "to": "unavailable",
+      "label": "stage fails",
+      "variant": "security"
+    },
+    {
+      "from": "guarded",
+      "to": "refused",
+      "label": "blocked",
+      "variant": "security"
+    },
+    {
+      "from": "guarded",
+      "to": "cached",
+      "label": "hit",
+      "variant": "dashed"
+    },
+    {
+      "from": "graded",
+      "to": "rewrite",
+      "label": "below gate"
+    },
+    {
+      "from": "rewrite",
+      "to": "generating",
+      "label": "retry passes"
+    },
+    {
+      "from": "rewrite",
+      "to": "noanswer",
+      "label": "still below"
+    },
+    {
+      "from": "retrieved",
+      "to": "noanswer",
+      "label": "none found",
+      "variant": "dashed"
+    },
+    {
+      "from": "generating",
+      "to": "noanswer",
+      "label": "uncited",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "CRAG bands (calibrated)",
+      "items": [
+        "top ≥ crag_upper → correct: context passes unchanged",
+        "reranker_threshold ≤ top < crag_upper → ambiguous: strips scored and refined, never abstains",
+        "top < reranker_threshold → incorrect: one LLM rewrite; a passing retry continues to generation"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Refusal and failure paths",
+      "items": [
+        "refused: prompt-injection, unsafe or unsupported-language text rules, or the off-topic centroid check after embedding",
+        "Unavailable: any required stage (registry, embedding, retrieval, rerank, generation) raising PipelineUnavailable",
+        "Uploaded-document scope skips the caches and off-topic check and never abstains while chunks rank"
+      ]
+    }
+  ]
+}
