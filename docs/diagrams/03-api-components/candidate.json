@@ -1,0 +1,851 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "FastRAG API — Components",
+    "output": "docs/diagrams/03-api-components/api-components.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/rohansen856/FastRAG",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "41815d092f442e8bf4b91fb93c52bed8b1ec44f9"
+    }
+  },
+  "components": [
+    {
+      "id": "ingester",
+      "type": "backend",
+      "label": "DocumentIngester",
+      "sublabel": "parse · chunk · upsert upload",
+      "pos": [
+        300,
+        180
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/ingest_document.py",
+          "line": 53,
+          "end_line": 115
+        },
+        {
+          "path": "src/fastrag/ingest_document.py",
+          "line": 185,
+          "end_line": 216,
+          "label": "delete_user_document"
+        }
+      ]
+    },
+    {
+      "id": "bootstrap",
+      "type": "backend",
+      "label": "bootstrap",
+      "sublabel": "build_pipeline wiring",
+      "pos": [
+        600,
+        1060
+      ],
+      "size": [
+        220,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/bootstrap.py",
+          "line": 205,
+          "end_line": 308
+        }
+      ]
+    },
+    {
+      "id": "overrides",
+      "type": "backend",
+      "label": "query_overrides",
+      "sublabel": "per-request config",
+      "pos": [
+        300,
+        350
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/query_overrides.py",
+          "line": 25,
+          "end_line": 103
+        }
+      ]
+    },
+    {
+      "id": "guardrails",
+      "type": "security",
+      "label": "Guardrails",
+      "sublabel": "text rules · off-topic",
+      "pos": [
+        300,
+        460
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/guardrails.py",
+          "line": 110,
+          "end_line": 154
+        }
+      ]
+    },
+    {
+      "id": "crag",
+      "type": "backend",
+      "label": "CorrectiveRetrieval",
+      "sublabel": "grade · refine · rewrite",
+      "pos": [
+        300,
+        570
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/crag.py",
+          "line": 85,
+          "end_line": 160
+        },
+        {
+          "path": "src/fastrag/crag.py",
+          "line": 244,
+          "end_line": 315,
+          "label": "rewrite and retry"
+        }
+      ]
+    },
+    {
+      "id": "citations",
+      "type": "backend",
+      "label": "CitationBuffer",
+      "sublabel": "validates each sentence",
+      "pos": [
+        300,
+        680
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/citations.py",
+          "line": 24,
+          "end_line": 160
+        }
+      ]
+    },
+    {
+      "id": "trace",
+      "type": "backend",
+      "label": "QueryTraceBuilder",
+      "sublabel": "stages for /query UI",
+      "pos": [
+        300,
+        790
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/query_trace.py",
+          "line": 78,
+          "end_line": 286
+        }
+      ]
+    },
+    {
+      "id": "observability",
+      "type": "backend",
+      "label": "observability",
+      "sublabel": "Langfuse · Prometheus",
+      "pos": [
+        300,
+        900
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/observability.py",
+          "line": 51,
+          "end_line": 81
+        },
+        {
+          "path": "src/fastrag/metrics.py",
+          "line": 3,
+          "end_line": 37
+        }
+      ]
+    },
+    {
+      "id": "routes",
+      "type": "frontend",
+      "label": "HTTP routes",
+      "sublabel": "api.py · bearer auth · SSE",
+      "pos": [
+        600,
+        180
+      ],
+      "size": [
+        220,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/api.py",
+          "line": 112,
+          "end_line": 128,
+          "label": "auth + override gate"
+        },
+        {
+          "path": "src/fastrag/api.py",
+          "line": 160,
+          "end_line": 200,
+          "label": "query routes"
+        },
+        {
+          "path": "src/fastrag/api.py",
+          "line": 265,
+          "end_line": 353,
+          "label": "voice routes"
+        }
+      ]
+    },
+    {
+      "id": "pipeline",
+      "type": "backend",
+      "label": "QueryPipeline",
+      "sublabel": "stream() / run() orchestrator",
+      "tag": "guard → cache → retrieve → CRAG → generate",
+      "pos": [
+        600,
+        340
+      ],
+      "size": [
+        220,
+        640
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 147,
+          "end_line": 548
+        },
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 660,
+          "end_line": 682,
+          "label": "_required stages fail closed"
+        }
+      ]
+    },
+    {
+      "id": "admin",
+      "type": "security",
+      "label": "admin router",
+      "sublabel": "/v1/admin · admin key",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/admin.py",
+          "line": 19,
+          "end_line": 83
+        }
+      ]
+    },
+    {
+      "id": "transcriber",
+      "type": "backend",
+      "label": "Transcriber",
+      "sublabel": "Sarvam | ElevenLabs",
+      "pos": [
+        930,
+        180
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/ports.py",
+          "line": 67,
+          "end_line": 75
+        },
+        {
+          "path": "src/fastrag/adapters/stt.py",
+          "line": 35,
+          "end_line": 156
+        }
+      ]
+    },
+    {
+      "id": "embedder",
+      "type": "backend",
+      "label": "Embedder",
+      "sublabel": "FastEmbed | Jina",
+      "pos": [
+        930,
+        350
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/ports.py",
+          "line": 10,
+          "end_line": 15
+        },
+        {
+          "path": "src/fastrag/adapters/embedding.py",
+          "line": 9,
+          "end_line": 65
+        },
+        {
+          "path": "src/fastrag/adapters/jina.py",
+          "line": 62,
+          "end_line": 121
+        }
+      ]
+    },
+    {
+      "id": "retriever",
+      "type": "backend",
+      "label": "QdrantHybridRetriever",
+      "sublabel": "dense + BM25 · RRF",
+      "pos": [
+        930,
+        460
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/ports.py",
+          "line": 18,
+          "end_line": 30
+        },
+        {
+          "path": "src/fastrag/adapters/retrieval.py",
+          "line": 26,
+          "end_line": 213
+        }
+      ]
+    },
+    {
+      "id": "reranker",
+      "type": "backend",
+      "label": "Reranker",
+      "sublabel": "cross-encoder | Jina",
+      "pos": [
+        930,
+        570
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/ports.py",
+          "line": 33,
+          "end_line": 41
+        },
+        {
+          "path": "src/fastrag/adapters/retrieval.py",
+          "line": 216,
+          "end_line": 272
+        },
+        {
+          "path": "src/fastrag/adapters/jina.py",
+          "line": 124,
+          "end_line": 205
+        }
+      ]
+    },
+    {
+      "id": "generator",
+      "type": "backend",
+      "label": "AnswerGenerator",
+      "sublabel": "OpenAI-compatible + fallback",
+      "pos": [
+        930,
+        680
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/ports.py",
+          "line": 44,
+          "end_line": 64
+        },
+        {
+          "path": "src/fastrag/adapters/generation.py",
+          "line": 45,
+          "end_line": 271
+        },
+        {
+          "path": "src/fastrag/harness.py",
+          "line": 50,
+          "end_line": 224,
+          "label": "retry · breaker · deadline"
+        }
+      ]
+    },
+    {
+      "id": "cache",
+      "type": "database",
+      "label": "RedisAnswerCache",
+      "sublabel": "exact + semantic KNN",
+      "pos": [
+        930,
+        790
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/ports.py",
+          "line": 78,
+          "end_line": 92
+        },
+        {
+          "path": "src/fastrag/adapters/cache.py",
+          "line": 36,
+          "end_line": 215
+        }
+      ]
+    },
+    {
+      "id": "registry",
+      "type": "database",
+      "label": "IndexRegistry",
+      "sublabel": "Postgres manifests",
+      "pos": [
+        930,
+        900
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/ports.py",
+          "line": 95,
+          "end_line": 98
+        },
+        {
+          "path": "src/fastrag/registry.py",
+          "line": 29,
+          "end_line": 213
+        }
+      ]
+    },
+    {
+      "id": "jobs",
+      "type": "messagebus",
+      "label": "RQ ingestion queue",
+      "sublabel": "rebuild_documents job",
+      "pos": [
+        40,
+        180
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/admin.py",
+          "line": 26,
+          "end_line": 27
+        },
+        {
+          "path": "src/fastrag/jobs.py",
+          "line": 14,
+          "end_line": 54
+        }
+      ]
+    },
+    {
+      "id": "indexbuilder",
+      "type": "backend",
+      "label": "IndexBuilder",
+      "sublabel": "blue/green kb_* build",
+      "pos": [
+        40,
+        320
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 93,
+          "end_line": 144
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Pipeline collaborators (in-process)",
+      "wraps": [
+        "overrides",
+        "guardrails",
+        "crag",
+        "citations",
+        "trace",
+        "observability"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "ports.py protocols → adapters",
+      "wraps": [
+        "transcriber",
+        "embedder",
+        "retriever",
+        "reranker",
+        "generator",
+        "cache",
+        "registry"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "admin key · compose worker",
+      "wraps": [
+        "admin",
+        "jobs",
+        "indexbuilder"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "run",
+      "from": "routes",
+      "to": "pipeline",
+      "label": "stream()",
+      "variant": "emphasis"
+    },
+    {
+      "id": "upload",
+      "from": "routes",
+      "to": "ingester",
+      "label": "/v1/documents"
+    },
+    {
+      "id": "voice",
+      "from": "routes",
+      "to": "transcriber",
+      "label": "voice audio"
+    },
+    {
+      "id": "admin-mount",
+      "from": "routes",
+      "to": "admin",
+      "label": "mounts",
+      "fromSide": "top",
+      "toSide": "right"
+    },
+    {
+      "id": "enqueue",
+      "from": "admin",
+      "to": "jobs",
+      "label": "enqueue"
+    },
+    {
+      "id": "build",
+      "from": "jobs",
+      "to": "indexbuilder",
+      "label": "rebuild"
+    },
+    {
+      "id": "wire",
+      "from": "bootstrap",
+      "to": "pipeline",
+      "label": "constructs",
+      "variant": "dashed"
+    },
+    {
+      "id": "effective",
+      "from": "pipeline",
+      "to": "overrides",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          545,
+          660.0
+        ],
+        [
+          545,
+          382.0
+        ]
+      ]
+    },
+    {
+      "id": "guard",
+      "from": "pipeline",
+      "to": "guardrails",
+      "variant": "security",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          545,
+          660.0
+        ],
+        [
+          545,
+          492.0
+        ]
+      ]
+    },
+    {
+      "id": "grade",
+      "from": "pipeline",
+      "to": "crag",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          545,
+          660.0
+        ],
+        [
+          545,
+          602.0
+        ]
+      ]
+    },
+    {
+      "id": "cite",
+      "from": "pipeline",
+      "to": "citations",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          545,
+          660.0
+        ],
+        [
+          545,
+          712.0
+        ]
+      ]
+    },
+    {
+      "id": "record",
+      "from": "pipeline",
+      "to": "trace",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          545,
+          660.0
+        ],
+        [
+          545,
+          822.0
+        ]
+      ]
+    },
+    {
+      "id": "observe",
+      "from": "pipeline",
+      "to": "observability",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          545,
+          660.0
+        ],
+        [
+          545,
+          932.0
+        ]
+      ]
+    },
+    {
+      "id": "embed",
+      "from": "pipeline",
+      "to": "embedder",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          875,
+          660.0
+        ],
+        [
+          875,
+          382.0
+        ]
+      ]
+    },
+    {
+      "id": "retrieve",
+      "from": "pipeline",
+      "to": "retriever",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          875,
+          660.0
+        ],
+        [
+          875,
+          492.0
+        ]
+      ]
+    },
+    {
+      "id": "rerank",
+      "from": "pipeline",
+      "to": "reranker",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          875,
+          660.0
+        ],
+        [
+          875,
+          602.0
+        ]
+      ]
+    },
+    {
+      "id": "generate",
+      "from": "pipeline",
+      "to": "generator",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          875,
+          660.0
+        ],
+        [
+          875,
+          712.0
+        ]
+      ]
+    },
+    {
+      "id": "cache-rw",
+      "from": "pipeline",
+      "to": "cache",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          875,
+          660.0
+        ],
+        [
+          875,
+          822.0
+        ]
+      ]
+    },
+    {
+      "id": "snapshot",
+      "from": "pipeline",
+      "to": "registry",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          875,
+          660.0
+        ],
+        [
+          875,
+          932.0
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Fail-closed vs fail-open",
+      "items": [
+        "QueryPipeline calls each collaborator and adapter directly: check guardrails, resolve config, embed, retrieve, rerank, correct (CRAG), stream the answer through the citation buffer, then write the cache and record the trace",
+        "Registry, embedding, retrieval, rerank and generation raise PipelineUnavailable → HTTP 503 or an SSE error event",
+        "Cache reads/writes and tracing fail open; an unreachable Redis becomes a no-op"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Adapters are chosen at startup",
+      "items": [
+        "cloud profile → Jina embed + rerank; local → FastEmbed ONNX models",
+        "FallbackGenerator switches to OpenRouter only if the primary fails before its first token",
+        "Hosted calls go through the harness: jittered retry, circuit breaker, request deadline"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Not on the query path",
+      "items": [
+        "CRAG itself re-embeds, re-retrieves and reranks a rewritten query (edges omitted for clarity)",
+        "Guardrails.check_safety_model exists but nothing calls it",
+        "The admin router, RQ queue and worker only run in the compose stack"
+      ]
+    }
+  ]
+}
