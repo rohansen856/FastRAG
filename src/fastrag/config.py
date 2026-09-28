@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     # Prefer this on Vercel (gitignored file is not uploaded). Paste the JSON object.
     calibration_json: str | None = None
     prompt_path: Path = Path("config/system_prompt.txt")
-    prompt_version: str = "v2"
+    prompt_version: str = "v3"
 
     llm_base_url: str = "http://llm-gateway:8000/v1"
     llm_api_key: SecretStr = SecretStr("not-configured")
