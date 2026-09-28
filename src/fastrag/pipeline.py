@@ -5,7 +5,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from .calibration import Calibration
@@ -173,6 +173,11 @@ class QueryPipeline:
             llm_api_key=self._config.llm_api_key,
             overrides=overrides,
         )
+        # Answers over an uploaded document are never cached: deleting the document
+        # must take its answers with it, and a cache entry would outlive the delete.
+        cache_skip_detail = "overridden" if effective.skip_cache else "document-scoped"
+        if scoped_documents is not None and not effective.skip_cache:
+            effective = replace(effective, skip_cache=True)
         state = _RequestState(
             query_id=uuid.uuid4().hex,
             trace_id=trace_id or uuid.uuid4().hex,
@@ -265,12 +270,12 @@ class QueryPipeline:
                 state.trace.record_stage(
                     "exact_cache",
                     status=StageStatus.SKIPPED,
-                    detail="overridden",
+                    detail=cache_skip_detail,
                 )
                 state.trace.record_stage(
                     "semantic_cache",
                     status=StageStatus.SKIPPED,
-                    detail="overridden",
+                    detail=cache_skip_detail,
                 )
         else:
             cache_started = time.perf_counter()
@@ -332,7 +337,7 @@ class QueryPipeline:
                 state.trace.record_stage(
                     "semantic_cache",
                     status=StageStatus.SKIPPED,
-                    detail="overridden",
+                    detail=cache_skip_detail,
                 )
         else:
             semantic_started = time.perf_counter()

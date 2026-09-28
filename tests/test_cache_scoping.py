@@ -54,3 +54,13 @@ async def test_a_hindi_question_never_reuses_an_english_answer(chunk):
     repeat = await pipeline.run("रिफंड अवधि क्या है?", language="hi-IN")
     assert repeat.cache_status is not CacheStatus.MISS  # same language still hits
 
+
+@pytest.mark.asyncio
+async def test_document_scoped_answers_are_not_cached(chunk):
+    """Deleting a document must take its answers with it; a cache entry would outlive it."""
+    cache = _NamespacedCache()
+    pipeline, _ = make_pipeline(chunk, cache=cache)
+    await pipeline.run("What is the refund period?", document_id="doc-1")
+    await pipeline.run("What is the refund period?", document_id="doc-1")
+    assert cache.entries == {}
+    assert cache.reads == 0
