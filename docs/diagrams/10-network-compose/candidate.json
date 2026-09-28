@@ -1,0 +1,491 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "FastRAG — Network (self-hosted compose stack)",
+    "output": "docs/diagrams/10-network-compose/network-compose.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/rohansen856/FastRAG",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "41815d092f442e8bf4b91fb93c52bed8b1ec44f9"
+    }
+  },
+  "components": [
+    {
+      "id": "ollama",
+      "type": "backend",
+      "label": "Ollama (host)",
+      "sublabel": ":11434 · llama3.2",
+      "pos": [
+        900,
+        60
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": ".env.local.example",
+          "line": 23,
+          "end_line": 27
+        },
+        {
+          "path": "compose.yaml",
+          "line": 76,
+          "end_line": 77,
+          "label": "host.docker.internal"
+        }
+      ]
+    },
+    {
+      "id": "egress",
+      "type": "cloud",
+      "label": "Internet egress",
+      "sublabel": "Sarvam · Langfuse Cloud · HF Hub",
+      "pos": [
+        40,
+        60
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/config.py",
+          "line": 78,
+          "end_line": 82,
+          "label": "STT hosts"
+        },
+        {
+          "path": "compose.yaml",
+          "line": 20,
+          "end_line": 23,
+          "label": "Langfuse Cloud default"
+        },
+        {
+          "path": "src/fastrag/download_models.py",
+          "line": 16,
+          "end_line": 27,
+          "label": "HF Hub"
+        }
+      ]
+    },
+    {
+      "id": "clients",
+      "type": "external",
+      "label": "Clients",
+      "sublabel": "browsers · frontends",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "sources": [
+        {
+          "path": "docs/local-setup.md",
+          "line": 182,
+          "end_line": 209,
+          "label": "frontends → localhost"
+        }
+      ]
+    },
+    {
+      "id": "proxy",
+      "type": "security",
+      "label": "proxy · Caddy",
+      "sublabel": "published :80 · :443 · auto HTTPS",
+      "pos": [
+        580,
+        300
+      ],
+      "size": [
+        220,
+        64
+      ],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 56,
+          "end_line": 70
+        },
+        {
+          "path": "deploy/Caddyfile",
+          "line": 1,
+          "end_line": 9
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "api",
+      "sublabel": "uvicorn :8000 · read-only rootfs",
+      "tag": "no-new-privileges",
+      "pos": [
+        900,
+        240
+      ],
+      "size": [
+        200,
+        300
+      ],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 72,
+          "end_line": 97
+        },
+        {
+          "path": "Dockerfile",
+          "line": 8,
+          "end_line": 23,
+          "label": "uid 10001 · EXPOSE 8000"
+        }
+      ]
+    },
+    {
+      "id": "qdrant",
+      "type": "database",
+      "label": "qdrant",
+      "sublabel": ":6333 · qdrant_data",
+      "pos": [
+        1240,
+        250
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 125,
+          "end_line": 134
+        }
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "app-redis",
+      "sublabel": ":6379 · requirepass · AOF",
+      "pos": [
+        1240,
+        360
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 136,
+          "end_line": 146
+        }
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "postgres",
+      "sublabel": ":5432 · fastrag + langfuse DBs",
+      "pos": [
+        1240,
+        470
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 148,
+          "end_line": 162
+        },
+        {
+          "path": "deploy/postgres-init.sql",
+          "line": 1,
+          "end_line": 2
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "worker",
+      "sublabel": "rq · ingestion queue",
+      "pos": [
+        1520,
+        360
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 99,
+          "end_line": 114
+        }
+      ]
+    },
+    {
+      "id": "langfuseweb",
+      "type": "backend",
+      "label": "langfuse-web",
+      "sublabel": ":3000 · profile langfuse",
+      "pos": [
+        580,
+        470
+      ],
+      "size": [
+        220,
+        64
+      ],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 164,
+          "end_line": 189
+        }
+      ]
+    },
+    {
+      "id": "langfusedeps",
+      "type": "database",
+      "label": "Langfuse backing",
+      "sublabel": "worker · ClickHouse · Redis · MinIO",
+      "pos": [
+        280,
+        470
+      ],
+      "size": [
+        220,
+        64
+      ],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 191,
+          "end_line": 242
+        }
+      ]
+    },
+    {
+      "id": "prometheus",
+      "type": "backend",
+      "label": "prometheus",
+      "sublabel": ":9090 · 15s scrape",
+      "pos": [
+        900,
+        640
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 244,
+          "end_line": 253
+        },
+        {
+          "path": "deploy/prometheus.yml",
+          "line": 1,
+          "end_line": 11
+        }
+      ]
+    },
+    {
+      "id": "grafana",
+      "type": "frontend",
+      "label": "grafana",
+      "sublabel": ":3000 · not routed",
+      "pos": [
+        580,
+        640
+      ],
+      "size": [
+        220,
+        64
+      ],
+      "sources": [
+        {
+          "path": "compose.yaml",
+          "line": 255,
+          "end_line": 266
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Docker host",
+      "wraps": [
+        "ollama",
+        "proxy",
+        "api",
+        "qdrant",
+        "redis",
+        "postgres",
+        "worker",
+        "langfuseweb",
+        "langfusedeps",
+        "prometheus",
+        "grafana"
+      ],
+      "pad": 26
+    },
+    {
+      "kind": "region",
+      "label": "fastrag_default bridge · single network",
+      "wraps": [
+        "proxy",
+        "api",
+        "qdrant",
+        "redis",
+        "postgres",
+        "worker",
+        "langfuseweb",
+        "langfusedeps",
+        "prometheus",
+        "grafana"
+      ],
+      "pad": 14
+    },
+    {
+      "kind": "security-group",
+      "label": "only published ports",
+      "wraps": [
+        "proxy"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "profile: langfuse (opt-in)",
+      "wraps": [
+        "langfuseweb",
+        "langfusedeps"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ingress",
+      "from": "clients",
+      "to": "proxy",
+      "label": "HTTPS :443",
+      "variant": "emphasis"
+    },
+    {
+      "id": "to-api",
+      "from": "proxy",
+      "to": "api",
+      "label": "api:8000 · all paths",
+      "variant": "emphasis"
+    },
+    {
+      "id": "to-langfuse",
+      "from": "proxy",
+      "to": "langfuseweb",
+      "label": "LANGFUSE_DOMAIN"
+    },
+    {
+      "id": "langfuse-deps",
+      "from": "langfuseweb",
+      "to": "langfusedeps",
+      "label": "internal"
+    },
+    {
+      "id": "llm",
+      "from": "api",
+      "to": "ollama",
+      "label": "host-gateway"
+    },
+    {
+      "id": "egress",
+      "from": "api",
+      "to": "egress",
+      "label": "HTTPS egress",
+      "variant": "dashed"
+    },
+    {
+      "id": "vectors",
+      "from": "api",
+      "to": "qdrant",
+      "label": "HTTP :6333"
+    },
+    {
+      "id": "cache",
+      "from": "api",
+      "to": "redis",
+      "label": "redis auth"
+    },
+    {
+      "id": "sql",
+      "from": "api",
+      "to": "postgres",
+      "label": "SQL :5432"
+    },
+    {
+      "id": "jobs",
+      "from": "worker",
+      "to": "redis",
+      "label": "dequeue"
+    },
+    {
+      "id": "scrape",
+      "from": "prometheus",
+      "to": "api",
+      "label": "GET /metrics"
+    },
+    {
+      "id": "dash",
+      "from": "grafana",
+      "to": "prometheus",
+      "label": "PromQL"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Exposure (as configured)",
+      "items": [
+        "Caddy forwards every path to the API, so /metrics, /docs and /openapi.json are public on FASTRAG_DOMAIN",
+        "No rate limiting, IP allowlist or auth at the proxy; the API checks bearer keys per route",
+        "One flat bridge network: any container can reach any other; data stores rely on passwords, not segmentation"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Hardening present",
+      "items": [
+        "Only proxy publishes host ports (80, 443); Grafana, Prometheus and all stores are internal",
+        "api runs read-only with tmpfs /tmp and no-new-privileges as uid 10001; worker has no-new-privileges only",
+        "Compose refuses to start without required secrets (${VAR:?}); Redis requires a password"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Not drawn",
+      "items": [
+        "model-init (profile tools) downloads ONNX models into the model_data volume",
+        "Worker also rebuilds Qdrant collections and registry rows; api and worker share rag_data and read-only models",
+        "TLS is Caddy's automatic HTTPS (internal CA for localhost); nothing in the repo configures it explicitly"
+      ]
+    }
+  ]
+}
