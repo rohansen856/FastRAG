@@ -10,6 +10,11 @@ with in-process models, and a fully hosted free-tier deployment (API on Vercel o
 UIs on Vercel). `FASTRAG_PROFILE` selects between them. See [providers.md](providers.md) and
 [deployment.md](deployment.md).
 
+Interactive diagrams of all of this are in [diagrams/](diagrams/README.md): system context,
+containers, API components, sequences, the data model and ERD, data flow, the hosted
+deployment, index and query lifecycles, the release runbook and the compose network. Each
+diagram cites the code it was drawn from.
+
 ## Request path
 
 1. `POST /v1/query`, `/v1/query/stream`, or one of the `/v1/voice/*` endpoints enters FastAPI
