@@ -71,7 +71,14 @@ def resolve_effective_config(
         llm.max_tokens if llm and llm.max_tokens is not None else max_answer_tokens
     )
     resolved_base_url = llm.base_url if llm and llm.base_url else llm_base_url
-    resolved_api_key = llm.api_key if llm and llm.api_key else llm_api_key
+    # The server's key is only ever sent to the server's own endpoint. A caller who
+    # names another base URL brings their own key; falling back to ours would post
+    # the deployment's credential to any URL a request supplies.
+    same_endpoint = resolved_base_url.rstrip("/") == llm_base_url.rstrip("/")
+    if llm and llm.api_key:
+        resolved_api_key = llm.api_key
+    else:
+        resolved_api_key = llm_api_key if same_endpoint else ""
     llm_override_active = bool(
         llm
         and llm_base_url
