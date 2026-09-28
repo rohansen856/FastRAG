@@ -61,7 +61,7 @@ Only fields you set are applied; omitted fields keep deployment defaults.
 | `reranker_threshold` | Abstention gate and CRAG lower band (0–1). |
 | `crag_confident_threshold` | CRAG upper band (0–1). |
 | `offtopic_threshold` | Vector guardrail cosine gate (**−1 to 1**; calibration often yields small negative values). |
-| `llm.*` | Request-scoped generator endpoint/model/tokens. Requires a configured base URL on the server for override routing to activate. |
+| `llm.*` | Request-scoped generator endpoint/model/tokens. Requires a configured base URL on the server for override routing to activate. The server's own key is only ever sent to the server's own `base_url`; a request naming another endpoint must supply its own `api_key`, and gets none otherwise. |
 
 `strategy`, `language`, and `document_ids` stay top-level query fields (not inside
 `overrides`). `language` is reduced to its ISO 639-1 primary subtag before it reaches Qdrant,
