@@ -1,0 +1,467 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "FastRAG — Data model (entity map)",
+    "output": "docs/diagrams/05-data-model/data-model.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/rohansen856/FastRAG",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "41815d092f442e8bf4b91fb93c52bed8b1ec44f9"
+    }
+  },
+  "components": [
+    {
+      "id": "calibration",
+      "type": "database",
+      "label": "Calibration",
+      "sublabel": "config/calibration.json · gates",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/calibration.py",
+          "line": 12,
+          "end_line": 28,
+          "label": "fields"
+        },
+        {
+          "path": "src/fastrag/calibrate.py",
+          "line": 184,
+          "end_line": 200,
+          "label": "writer"
+        }
+      ]
+    },
+    {
+      "id": "manifests",
+      "type": "database",
+      "label": "index_manifests",
+      "sublabel": "PK index_version · state · JSONB",
+      "pos": [
+        440,
+        40
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/registry.py",
+          "line": 36,
+          "end_line": 59,
+          "label": "DDL + one_active_index"
+        },
+        {
+          "path": "src/fastrag/registry.py",
+          "line": 15,
+          "end_line": 26,
+          "label": "IndexManifest JSONB"
+        },
+        {
+          "path": "src/fastrag/registry.py",
+          "line": 95,
+          "end_line": 109,
+          "label": "activate"
+        }
+      ]
+    },
+    {
+      "id": "collection",
+      "type": "database",
+      "label": "Collection",
+      "sublabel": "kb_{version} · dense + bm25",
+      "pos": [
+        840,
+        40
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 109,
+          "end_line": 111,
+          "label": "naming"
+        },
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 187,
+          "end_line": 212,
+          "label": "vectors + payload indexes"
+        }
+      ]
+    },
+    {
+      "id": "alias",
+      "type": "database",
+      "label": "kb_current",
+      "sublabel": "Qdrant alias",
+      "pos": [
+        1240,
+        40
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/config.py",
+          "line": 43,
+          "end_line": 43
+        },
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 290,
+          "end_line": 304,
+          "label": "atomic alias swap"
+        }
+      ]
+    },
+    {
+      "id": "centroid",
+      "type": "database",
+      "label": "Corpus centroid",
+      "sublabel": "manifest.centroid · JSON file",
+      "pos": [
+        440,
+        260
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/registry.py",
+          "line": 194,
+          "end_line": 213,
+          "label": "store / read"
+        },
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 266,
+          "end_line": 280,
+          "label": "staged file"
+        }
+      ]
+    },
+    {
+      "id": "chunk",
+      "type": "database",
+      "label": "Chunk point",
+      "sublabel": "PK chunk_id = uuid5(doc:strategy:text)",
+      "pos": [
+        840,
+        260
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/chunking.py",
+          "line": 328,
+          "end_line": 367,
+          "label": "payload"
+        },
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 224,
+          "end_line": 237,
+          "label": "PointStruct"
+        }
+      ]
+    },
+    {
+      "id": "exact",
+      "type": "database",
+      "label": "Exact cache entry",
+      "sublabel": "fastrag:exact:{ns}:{sha256}",
+      "pos": [
+        1240,
+        260
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/adapters/cache.py",
+          "line": 160,
+          "end_line": 180,
+          "label": "SET … EX ttl"
+        },
+        {
+          "path": "src/fastrag/adapters/cache.py",
+          "line": 212,
+          "end_line": 215,
+          "label": "key format"
+        }
+      ]
+    },
+    {
+      "id": "cachepair",
+      "type": "database",
+      "label": "Cache pair",
+      "sublabel": "eval/cache_pairs.jsonl",
+      "pos": [
+        40,
+        480
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "scripts/selfcorpus/golden.py",
+          "line": 446,
+          "end_line": 484
+        }
+      ]
+    },
+    {
+      "id": "golden",
+      "type": "database",
+      "label": "Golden item",
+      "sublabel": "eval/golden · calibration.jsonl",
+      "pos": [
+        440,
+        480
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "scripts/selfcorpus/golden.py",
+          "line": 105,
+          "end_line": 124,
+          "label": "record + id"
+        },
+        {
+          "path": "src/fastrag/evaluation.py",
+          "line": 19,
+          "end_line": 34,
+          "label": "GoldenItem"
+        }
+      ]
+    },
+    {
+      "id": "sourcedoc",
+      "type": "database",
+      "label": "Source document",
+      "sublabel": "document_id · title · source_uri",
+      "pos": [
+        840,
+        480
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/chunking.py",
+          "line": 34,
+          "end_line": 42,
+          "label": "SourceDocument"
+        },
+        {
+          "path": "scripts/selfcorpus/sources.py",
+          "line": 147,
+          "end_line": 158,
+          "label": "self-corpus id"
+        }
+      ]
+    },
+    {
+      "id": "namespace",
+      "type": "backend",
+      "label": "Cache namespace",
+      "sublabel": "derived hash · not stored",
+      "pos": [
+        1240,
+        480
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/fingerprint.py",
+          "line": 26,
+          "end_line": 50,
+          "label": "cache_namespace"
+        },
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 253,
+          "end_line": 266,
+          "label": "inputs passed"
+        }
+      ]
+    },
+    {
+      "id": "semantic",
+      "type": "database",
+      "label": "Semantic cache entry",
+      "sublabel": "HASH · TAG · FLOAT32 vector",
+      "pos": [
+        1240,
+        700
+      ],
+      "size": [
+        230,
+        64
+      ],
+      "sources": [
+        {
+          "path": "src/fastrag/adapters/cache.py",
+          "line": 91,
+          "end_line": 119,
+          "label": "FT.CREATE schema"
+        },
+        {
+          "path": "src/fastrag/adapters/cache.py",
+          "line": 181,
+          "end_line": 192,
+          "label": "HSET + EXPIRE"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Qdrant",
+      "wraps": [
+        "collection",
+        "chunk",
+        "sourcedoc"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Redis",
+      "wraps": [
+        "exact",
+        "namespace",
+        "semantic"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "cal-index",
+      "from": "calibration",
+      "to": "manifests",
+      "label": "N:1 · content_version"
+    },
+    {
+      "id": "index-collection",
+      "from": "manifests",
+      "to": "collection",
+      "label": "1:1 · collection_name",
+      "variant": "emphasis"
+    },
+    {
+      "id": "alias-collection",
+      "from": "alias",
+      "to": "collection",
+      "label": "1:1 · points at"
+    },
+    {
+      "id": "index-centroid",
+      "from": "manifests",
+      "to": "centroid",
+      "label": "1:1 · centroid"
+    },
+    {
+      "id": "collection-chunks",
+      "from": "collection",
+      "to": "chunk",
+      "label": "1:N · points",
+      "variant": "emphasis"
+    },
+    {
+      "id": "doc-chunks",
+      "from": "sourcedoc",
+      "to": "chunk",
+      "label": "1:N · document_id"
+    },
+    {
+      "id": "golden-chunks",
+      "from": "golden",
+      "to": "chunk",
+      "label": "N:M · relevant ids",
+      "variant": "dashed"
+    },
+    {
+      "id": "exact-cites",
+      "from": "exact",
+      "to": "chunk",
+      "label": "N:M · cites chunk_id",
+      "variant": "dashed"
+    },
+    {
+      "id": "ns-exact",
+      "from": "namespace",
+      "to": "exact",
+      "label": "1:N · key part"
+    },
+    {
+      "id": "ns-semantic",
+      "from": "namespace",
+      "to": "semantic",
+      "label": "1:N · TAG field"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "index_manifests (Postgres, the only table)",
+      "items": [
+        "index_version TEXT PK · collection_name TEXT · content_version TEXT · embedding_fingerprint TEXT",
+        "state TEXT CHECK (building, validated, active, retired, failed) · manifest JSONB · created_at · activated_at",
+        "Partial unique index one_active_index: at most one active row. No foreign keys anywhere"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Chunk point payload (Qdrant)",
+      "items": [
+        "chunk_id · document_id · title · source_uri · page · text · strategy · language · position",
+        "Optional raw_text, context_text, strategy metadata (window, parent_id, header), session_upload",
+        "Keyword indexes: strategy, language, document_id; bool index: session_upload"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Logical links, not constraints",
+      "items": [
+        "No foreign keys: every relation is kept by code, so golden relevant_chunk_ids can go stale after a rebuild (derive-eval checks for that drift)",
+        "Cache namespace = sha256 of content_version, embedding fingerprint, prompt_version, model, max_tokens, locale, strategy, document scope",
+        "Cached payload = answer · citations[] · outcome; 7-day TTL"
+      ]
+    }
+  ]
+}
