@@ -1,0 +1,499 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "FastRAG — Data flow",
+    "output": "docs/diagrams/06-dataflow/dataflow.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/rohansen856/FastRAG",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "41815d092f442e8bf4b91fb93c52bed8b1ec44f9"
+    },
+    "viewBox": [
+      1085,
+      700
+    ]
+  },
+  "stages": [
+    {
+      "label": "Sources"
+    },
+    {
+      "label": "Ingest"
+    },
+    {
+      "label": "Stores"
+    },
+    {
+      "label": "Serve · cache"
+    },
+    {
+      "label": "Consumers"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "repo",
+      "type": "external",
+      "label": "Repo checkout",
+      "sublabel": "git ls-files",
+      "stage": 0,
+      "row": 2,
+      "sources": [
+        {
+          "path": "scripts/selfcorpus/sources.py",
+          "line": 99,
+          "end_line": 132
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "uploadsrc",
+      "type": "external",
+      "label": "Uploaded file",
+      "sublabel": "PDF · MD · TXT",
+      "stage": 0,
+      "row": 1,
+      "sources": [
+        {
+          "path": "website/app/api/rag/[...path]/route.ts",
+          "line": 51,
+          "end_line": 66
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "question",
+      "type": "external",
+      "label": "Question",
+      "sublabel": "text or audio",
+      "stage": 0,
+      "row": 0,
+      "sources": [
+        {
+          "path": "website/lib/api.ts",
+          "line": 171,
+          "end_line": 206
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "build",
+      "type": "backend",
+      "label": "Build index",
+      "sublabel": "split · chunk · embed",
+      "stage": 1,
+      "row": 2,
+      "sources": [
+        {
+          "path": "scripts/ingest-self.py",
+          "line": 57,
+          "end_line": 92,
+          "label": "build_chunks"
+        },
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 93,
+          "end_line": 144,
+          "label": "build_from_chunks"
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "evalcal",
+      "type": "backend",
+      "label": "Eval + calibrate",
+      "sublabel": "golden · pairs · gates",
+      "stage": 1,
+      "row": 3,
+      "sources": [
+        {
+          "path": "scripts/ingest-self.py",
+          "line": 260,
+          "end_line": 380,
+          "label": "finalise eval sets"
+        },
+        {
+          "path": "src/fastrag/calibrate.py",
+          "line": 128,
+          "end_line": 201,
+          "label": "fit gates"
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "qdrant",
+      "type": "database",
+      "label": "Qdrant",
+      "sublabel": "kb_* chunk points",
+      "stage": 2,
+      "row": 1,
+      "sources": [
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 187,
+          "end_line": 237
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "files",
+      "type": "database",
+      "label": "Config files",
+      "sublabel": "calibration · eval jsonl",
+      "stage": 2,
+      "row": 3,
+      "sources": [
+        {
+          "path": "scripts/selfcorpus/evalsets.py",
+          "line": 17,
+          "end_line": 22,
+          "label": "write_jsonl"
+        },
+        {
+          "path": "src/fastrag/calibrate.py",
+          "line": 184,
+          "end_line": 200,
+          "label": "calibration.json"
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "Postgres",
+      "sublabel": "index_manifests",
+      "stage": 2,
+      "row": 2,
+      "sources": [
+        {
+          "path": "src/fastrag/registry.py",
+          "line": 61,
+          "end_line": 87
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis",
+      "sublabel": "answer cache · 7d TTL",
+      "stage": 3,
+      "row": 1,
+      "sources": [
+        {
+          "path": "src/fastrag/adapters/cache.py",
+          "line": 160,
+          "end_line": 192
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "ingest",
+      "type": "backend",
+      "label": "Upload ingest",
+      "sublabel": "parse · chunk · embed",
+      "stage": 1,
+      "row": 1,
+      "sources": [
+        {
+          "path": "src/fastrag/ingest_document.py",
+          "line": 53,
+          "end_line": 115
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "pipeline",
+      "type": "backend",
+      "label": "Query pipeline",
+      "sublabel": "guard · CRAG · cite",
+      "stage": 3,
+      "row": 0,
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 147,
+          "end_line": 548
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "reports",
+      "type": "database",
+      "label": "Reports",
+      "sublabel": "report · bench summary",
+      "stage": 4,
+      "row": 3,
+      "sources": [
+        {
+          "path": "src/fastrag/evaluation.py",
+          "line": 217,
+          "end_line": 242,
+          "label": "report.json"
+        },
+        {
+          "path": "src/fastrag/api.py",
+          "line": 363,
+          "end_line": 370,
+          "label": "/v1/bench"
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "evaluate",
+      "type": "backend",
+      "label": "Eval + bench",
+      "sublabel": "queries the live API",
+      "stage": 4,
+      "row": 2,
+      "sources": [
+        {
+          "path": "src/fastrag/evaluation.py",
+          "line": 61,
+          "end_line": 124
+        },
+        {
+          "path": "scripts/bench-latency.py",
+          "line": 73,
+          "end_line": 198
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "providers",
+      "type": "cloud",
+      "label": "Model providers",
+      "sublabel": "Jina · Groq · Sarvam",
+      "stage": 4,
+      "row": 1,
+      "sources": [
+        {
+          "path": "src/fastrag/adapters/jina.py",
+          "line": 87,
+          "end_line": 111
+        },
+        {
+          "path": "src/fastrag/adapters/generation.py",
+          "line": 81,
+          "end_line": 139
+        },
+        {
+          "path": "src/fastrag/adapters/stt.py",
+          "line": 61,
+          "end_line": 94
+        }
+      ],
+      "width": 118,
+      "height": 58
+    },
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "Browser",
+      "sublabel": "answer · trace",
+      "stage": 4,
+      "row": 0,
+      "sources": [
+        {
+          "path": "website/lib/query-trace-store.ts",
+          "line": 1,
+          "end_line": 75
+        }
+      ],
+      "width": 118,
+      "height": 58
+    }
+  ],
+  "flows": [
+    {
+      "id": "sections",
+      "from": "repo",
+      "to": "build",
+      "label": "sections",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "points",
+      "from": "build",
+      "to": "qdrant",
+      "label": "points",
+      "variant": "emphasis",
+      "labelAt": [
+        398,
+        328
+      ]
+    },
+    {
+      "id": "manifest",
+      "from": "build",
+      "to": "postgres",
+      "label": "manifest",
+      "route": "straight",
+      "labelAt": [
+        422,
+        402
+      ]
+    },
+    {
+      "id": "chunk-ids",
+      "from": "build",
+      "to": "evalcal",
+      "label": "chunk ids",
+      "labelAt": [
+        315,
+        429
+      ]
+    },
+    {
+      "id": "eval-sets",
+      "from": "evalcal",
+      "to": "files",
+      "label": "eval sets",
+      "route": "straight"
+    },
+    {
+      "id": "golden",
+      "from": "files",
+      "to": "evaluate",
+      "label": "golden.jsonl"
+    },
+    {
+      "id": "reports-out",
+      "from": "evaluate",
+      "to": "reports",
+      "label": "metrics",
+      "labelAt": [
+        960,
+        429
+      ]
+    },
+    {
+      "id": "upload",
+      "from": "uploadsrc",
+      "to": "ingest",
+      "label": "file ≤ 10 MiB",
+      "route": "straight"
+    },
+    {
+      "id": "session-points",
+      "from": "ingest",
+      "to": "qdrant",
+      "label": "upload points",
+      "variant": "dashed",
+      "route": "straight"
+    },
+    {
+      "id": "ask",
+      "from": "question",
+      "to": "pipeline",
+      "label": "query",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "candidates",
+      "from": "qdrant",
+      "to": "pipeline",
+      "label": "top 20",
+      "labelAt": [
+        612,
+        256
+      ]
+    },
+    {
+      "id": "active",
+      "from": "postgres",
+      "to": "pipeline",
+      "label": "index",
+      "labelAt": [
+        662,
+        340
+      ]
+    },
+    {
+      "id": "cache",
+      "from": "pipeline",
+      "to": "redis",
+      "label": "answers",
+      "variant": "dashed",
+      "labelAt": [
+        745,
+        201
+      ]
+    },
+    {
+      "id": "model-io",
+      "from": "pipeline",
+      "to": "providers",
+      "label": "prompts · audio"
+    },
+    {
+      "id": "answer",
+      "from": "pipeline",
+      "to": "browser",
+      "label": "SSE answer",
+      "variant": "emphasis",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Offline (operator machine / CI)",
+      "items": [
+        "Docs and code are split by heading or AST symbol; prose is translated to hi, bn, ta, te, mr and cached under eval/translations",
+        "Unanswerable candidates whose top-1 score reaches the answerable lower quartile are dropped as leaks",
+        "Calibration fits the abstention, CRAG, cache-distance and off-topic gates from the calibration split and cache pairs",
+        "Not drawn: the eval-set builder reads top-1 scores back from the new collection, and the API loads calibration gates and the centroid at startup"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Online",
+      "items": [
+        "Questions pass guardrails, the caches, hybrid retrieval, rerank and CRAG before the LLM sees any context",
+        "Answers stream to the browser sentence by sentence; the final event carries citations and the full trace"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "What leaves the system",
+      "items": [
+        "Query text and retrieved passages go to Jina and the LLM provider; audio goes to Sarvam",
+        "Langfuse receives spans with content hashed unless FASTRAG_TRACE_RAW_CONTENT is set",
+        "Every stage also emits Langfuse spans and Prometheus metrics (/metrics, scraped every 15s in compose); not drawn"
+      ]
+    }
+  ]
+}
