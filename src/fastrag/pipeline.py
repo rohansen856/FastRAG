@@ -35,7 +35,7 @@ from .observability import observation, trace_raw_content
 from .ports import AnswerCache, AnswerGenerator, Embedder, Reranker, Retriever
 from .query_overrides import EffectiveQueryConfig, resolve_effective_config
 from .query_trace import QueryTraceBuilder
-from .text import normalize_language
+from .text import detect_script_language, normalize_language
 
 NO_ANSWER_TEXT = "I don't know based on the available sources."
 
@@ -253,6 +253,9 @@ class QueryPipeline:
             max_answer_tokens=effective.max_answer_tokens,
             chunk_strategy=active_strategy,
             document_scope=document_scope,
+            # Multilingual embeddings place a question and its translation almost on
+            # top of each other; without the language a Hindi asker gets the English answer.
+            locale=language or detect_script_language(query),
         )
         if state.trace is not None:
             state.trace.set_cache_namespace(namespace)
