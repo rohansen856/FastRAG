@@ -49,6 +49,18 @@ AudioUpload = Annotated[UploadFile, File(description="Recorded question audio")]
 OptionalForm = Annotated[str | None, Form()]
 
 
+# Provider statuses meaning the audio itself was rejected. Anything else - an auth
+# failure, a 5xx, a timeout - is a fault on our side and stays a 503.
+_UNREADABLE_AUDIO = {400, 413, 415, 422}
+
+
+def stt_error_status(error: ProviderError) -> int:
+    """422 for audio the provider could not read, 503 when the provider is the problem."""
+    if error.status_code in _UNREADABLE_AUDIO:
+        return status.HTTP_422_UNPROCESSABLE_ENTITY
+    return status.HTTP_503_SERVICE_UNAVAILABLE
+
+
 def create_app(
     *,
     settings: Settings | None = None,
@@ -246,7 +258,7 @@ def create_app(
             )
         except ProviderError as exc:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                status_code=stt_error_status(exc),
                 detail={"stage": "stt", "message": str(exc)},
             ) from exc
 
@@ -287,7 +299,7 @@ def create_app(
                 )
         except ProviderError as exc:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                status_code=stt_error_status(exc),
                 detail={"stage": "stt", "message": str(exc)},
             ) from exc
         except PipelineUnavailable as exc:
