@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Uploaded document — ingest, scoped query, delete",
+    "output": "docs/diagrams/04b-upload-sequence/upload-sequence.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "viewBox": [1050, 676],
+    "repository": {
+      "url": "https://github.com/rohansen856/FastRAG",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "41815d092f442e8bf4b91fb93c52bed8b1ec44f9"
+    }
+  },
+  "participants": [
+    {
+      "id": "browser", "type": "external", "label": "Browser", "sublabel": "hero attachments",
+      "sources": [
+        { "path": "website/components/landing/hero-section.tsx", "line": 320, "end_line": 379, "label": "upload / remove" },
+        { "path": "website/components/landing/hero-section.tsx", "line": 224, "end_line": 235, "label": "delete on pagehide" }
+      ]
+    },
+    {
+      "id": "proxy", "type": "frontend", "label": "Proxy", "sublabel": "/api/rag route",
+      "sources": [
+        { "path": "website/app/api/rag/[...path]/route.ts", "line": 19, "end_line": 66, "label": "multipart + 10 MiB check" }
+      ]
+    },
+    {
+      "id": "api", "type": "backend", "label": "FastAPI", "sublabel": "documents routes",
+      "sources": [{ "path": "src/fastrag/api.py", "line": 202, "end_line": 243 }]
+    },
+    {
+      "id": "ingester", "type": "backend", "label": "Ingester", "sublabel": "parse · chunk",
+      "sources": [
+        { "path": "src/fastrag/ingest_document.py", "line": 53, "end_line": 115 },
+        { "path": "src/fastrag/documents.py", "line": 65, "end_line": 80, "label": "parse_file" }
+      ]
+    },
+    {
+      "id": "postgres", "type": "database", "label": "Postgres", "sublabel": "index registry",
+      "sources": [{ "path": "src/fastrag/registry.py", "line": 180, "end_line": 187 }]
+    },
+    {
+      "id": "jina", "type": "cloud", "label": "Jina", "sublabel": "embed passages",
+      "sources": [{ "path": "src/fastrag/adapters/jina.py", "line": 91, "end_line": 96 }]
+    },
+    {
+      "id": "pipeline", "type": "backend", "label": "Pipeline", "sublabel": "document scope",
+      "sources": [
+        { "path": "src/fastrag/pipeline.py", "line": 176, "end_line": 180, "label": "scope forces skip_cache" },
+        { "path": "src/fastrag/pipeline.py", "line": 301, "end_line": 331, "label": "vector guard skipped" },
+        { "path": "src/fastrag/pipeline.py", "line": 409, "end_line": 410, "label": "never abstains when ranked" }
+      ]
+    },
+    {
+      "id": "qdrant", "type": "database", "label": "Qdrant", "sublabel": "live kb_*",
+      "sources": [
+        { "path": "src/fastrag/ingest_document.py", "line": 139, "end_line": 182, "label": "upsert points" },
+        { "path": "src/fastrag/adapters/retrieval.py", "line": 129, "end_line": 145, "label": "scope / exclude filters" },
+        { "path": "src/fastrag/ingest_document.py", "line": 185, "end_line": 216, "label": "delete by document_id" }
+      ]
+    }
+  ],
+  "segments": [
+    { "from": 150, "to": 336, "label": "Upload" },
+    { "from": 336, "to": 476, "label": "Scoped query" },
+    { "from": 476, "to": 568, "label": "Delete" }
+  ],
+  "messages": [
+    { "id": "upload", "from": "browser", "to": "proxy", "y": 162, "label": "POST documents/ingest", "variant": "emphasis", "note": "multipart only; over 10 MiB → 413" },
+    { "id": "upload-fwd", "from": "proxy", "to": "api", "y": 190, "label": "+ Bearer query token", "variant": "security" },
+    { "id": "ingest", "from": "api", "to": "ingester", "y": 218, "label": "ingest_upload()", "note": "suffix check; id user-<20 hex>" },
+    { "id": "active", "from": "ingester", "to": "postgres", "y": 246, "label": "active_snapshot()" },
+    { "id": "embed", "from": "ingester", "to": "jina", "y": 274, "label": "embed chunks", "note": "sentence chunks, max 500, session_upload=true" },
+    { "id": "upsert", "from": "ingester", "to": "qdrant", "y": 302, "label": "upsert into live kb_*", "variant": "emphasis" },
+    { "id": "doc-id", "from": "api", "to": "proxy", "y": 330, "label": "document_id · chunk_count", "variant": "return", "note": "errors → 413 / 422" },
+    { "id": "ask", "from": "browser", "to": "proxy", "y": 358, "label": "query + document_ids", "variant": "emphasis" },
+    { "id": "ask-fwd", "from": "proxy", "to": "api", "y": 386, "label": "v1/query/stream", "variant": "security" },
+    { "id": "scoped", "from": "api", "to": "pipeline", "y": 414, "label": "stream(document scope)", "note": "no cache, no off-topic check" },
+    { "id": "filter", "from": "pipeline", "to": "qdrant", "y": 442, "label": "document_id ∈ scope", "note": "answers auto-cite the uploaded file" },
+    { "id": "answer", "from": "api", "to": "proxy", "y": 470, "label": "SSE answer", "variant": "return" },
+    { "id": "remove", "from": "browser", "to": "proxy", "y": 498, "label": "DELETE documents/user-…", "note": "on remove or page hide" },
+    { "id": "remove-fwd", "from": "proxy", "to": "api", "y": 526, "label": "+ Bearer query token", "variant": "security" },
+    { "id": "delete", "from": "api", "to": "qdrant", "y": 554, "label": "delete by document_id", "variant": "dashed", "note": "only user- ids accepted" }
+  ],
+  "activations": [
+    { "participant": "proxy", "from": 156, "to": 336 },
+    { "participant": "api", "from": 184, "to": 336, "type": "backend" },
+    { "participant": "ingester", "from": 212, "to": 308, "type": "backend" },
+    { "participant": "postgres", "from": 240, "to": 252, "type": "database" },
+    { "participant": "jina", "from": 268, "to": 280, "type": "cloud" },
+    { "participant": "qdrant", "from": 296, "to": 308, "type": "database" },
+    { "participant": "api", "from": 380, "to": 476, "type": "backend" },
+    { "participant": "pipeline", "from": 408, "to": 470, "type": "backend" },
+    { "participant": "qdrant", "from": 436, "to": 448, "type": "database" },
+    { "participant": "api", "from": 520, "to": 560, "type": "backend" },
+    { "participant": "qdrant", "from": 548, "to": 560, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "What the scope changes",
+      "items": [
+        "Exact and semantic caches are skipped, so a deleted document can't be answered from cache",
+        "The off-topic guardrail is skipped and CRAG never abstains while chunks rank; answers cite the upload"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Isolation",
+      "items": [
+        "Unscoped queries filter out session_upload points, so uploads never surface in corpus answers",
+        "Uploads live in the active collection; there is no TTL, and an alias switch leaves them behind in the old collection"
+      ]
+    }
+  ]
+}

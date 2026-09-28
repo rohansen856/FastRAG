@@ -1,0 +1,439 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Streamed query — /v1/query/stream (cloud profile)",
+    "output": "docs/diagrams/04a-query-sequence/query-sequence.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/rohansen856/FastRAG",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "41815d092f442e8bf4b91fb93c52bed8b1ec44f9"
+    },
+    "viewBox": [
+      1050,
+      676
+    ]
+  },
+  "participants": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "Browser",
+      "sublabel": "website hero",
+      "sources": [
+        {
+          "path": "website/lib/api.ts",
+          "line": 25,
+          "end_line": 93,
+          "label": "SSE parser"
+        },
+        {
+          "path": "website/lib/api.ts",
+          "line": 171,
+          "end_line": 206,
+          "label": "text / voice query"
+        }
+      ]
+    },
+    {
+      "id": "proxy",
+      "type": "frontend",
+      "label": "Proxy",
+      "sublabel": "/api/rag route",
+      "sources": [
+        {
+          "path": "website/app/api/rag/[...path]/route.ts",
+          "line": 41,
+          "end_line": 105
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI",
+      "sublabel": "auth · SSE",
+      "sources": [
+        {
+          "path": "src/fastrag/api.py",
+          "line": 185,
+          "end_line": 200,
+          "label": "/v1/query/stream"
+        },
+        {
+          "path": "src/fastrag/api.py",
+          "line": 311,
+          "end_line": 353,
+          "label": "/v1/voice/query/stream"
+        },
+        {
+          "path": "src/fastrag/api.py",
+          "line": 416,
+          "end_line": 448,
+          "label": "_stream_events"
+        }
+      ]
+    },
+    {
+      "id": "pipeline",
+      "type": "backend",
+      "label": "Pipeline",
+      "sublabel": "guard · CRAG · cite",
+      "sources": [
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 216,
+          "end_line": 360,
+          "label": "guard · registry · caches"
+        },
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 361,
+          "end_line": 438,
+          "label": "retrieve · rerank · CRAG"
+        },
+        {
+          "path": "src/fastrag/pipeline.py",
+          "line": 440,
+          "end_line": 548,
+          "label": "generate · cache write"
+        }
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "Postgres",
+      "sublabel": "index registry",
+      "sources": [
+        {
+          "path": "src/fastrag/registry.py",
+          "line": 180,
+          "end_line": 187
+        }
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis",
+      "sublabel": "exact + KNN",
+      "sources": [
+        {
+          "path": "src/fastrag/adapters/cache.py",
+          "line": 125,
+          "end_line": 158,
+          "label": "get_exact / get_semantic"
+        },
+        {
+          "path": "src/fastrag/adapters/cache.py",
+          "line": 160,
+          "end_line": 192,
+          "label": "put"
+        }
+      ]
+    },
+    {
+      "id": "jina",
+      "type": "cloud",
+      "label": "Jina",
+      "sublabel": "embed · rerank",
+      "sources": [
+        {
+          "path": "src/fastrag/adapters/jina.py",
+          "line": 87,
+          "end_line": 111,
+          "label": "embeddings"
+        },
+        {
+          "path": "src/fastrag/adapters/jina.py",
+          "line": 155,
+          "end_line": 165,
+          "label": "rerank"
+        }
+      ]
+    },
+    {
+      "id": "qdrant",
+      "type": "database",
+      "label": "Qdrant",
+      "sublabel": "active kb_*",
+      "sources": [
+        {
+          "path": "src/fastrag/adapters/retrieval.py",
+          "line": 116,
+          "end_line": 186
+        }
+      ]
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "Groq",
+      "sublabel": "chat/completions",
+      "sources": [
+        {
+          "path": "src/fastrag/adapters/generation.py",
+          "line": 81,
+          "end_line": 139,
+          "label": "stream"
+        },
+        {
+          "path": "src/fastrag/adapters/generation.py",
+          "line": 238,
+          "end_line": 260,
+          "label": "fallback before 1st token"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 232.0,
+      "label": "Entry"
+    },
+    {
+      "from": 232.0,
+      "to": 344.0,
+      "label": "Guard, index, caches"
+    },
+    {
+      "from": 344.0,
+      "to": 400.0,
+      "label": "Retrieve, grade"
+    },
+    {
+      "from": 400.0,
+      "to": 568,
+      "label": "Generate, stream"
+    }
+  ],
+  "messages": [
+    {
+      "id": "ask",
+      "from": "browser",
+      "to": "proxy",
+      "y": 162,
+      "label": "POST v1/query/stream",
+      "variant": "emphasis"
+    },
+    {
+      "id": "forward",
+      "from": "proxy",
+      "to": "api",
+      "y": 190,
+      "label": "+ Bearer query token",
+      "variant": "security",
+      "note": "voice route: Sarvam speech-to-text first"
+    },
+    {
+      "id": "start",
+      "from": "api",
+      "to": "pipeline",
+      "y": 218,
+      "label": "stream()",
+      "note": "overrides validated; 422 if disabled"
+    },
+    {
+      "id": "snapshot",
+      "from": "pipeline",
+      "to": "postgres",
+      "y": 246,
+      "label": "active_snapshot()",
+      "note": "text guardrail runs first → refused"
+    },
+    {
+      "id": "exact",
+      "from": "pipeline",
+      "to": "redis",
+      "y": 274,
+      "label": "GET exact key",
+      "note": "hit → cached answer, stages skipped"
+    },
+    {
+      "id": "embed",
+      "from": "pipeline",
+      "to": "jina",
+      "y": 302,
+      "label": "embed query",
+      "note": "vector guardrail: off-topic → refused"
+    },
+    {
+      "id": "semantic",
+      "from": "pipeline",
+      "to": "redis",
+      "y": 330,
+      "label": "FT.SEARCH KNN 1",
+      "note": "hit if distance ≤ calibrated gate"
+    },
+    {
+      "id": "retrieve",
+      "from": "pipeline",
+      "to": "qdrant",
+      "y": 358,
+      "label": "hybrid query · top 20",
+      "variant": "emphasis",
+      "note": "no candidates → no_answer"
+    },
+    {
+      "id": "rerank",
+      "from": "pipeline",
+      "to": "jina",
+      "y": 386,
+      "label": "rerank",
+      "note": "CRAG: correct · refine · rewrite or abstain"
+    },
+    {
+      "id": "generate",
+      "from": "pipeline",
+      "to": "llm",
+      "y": 414,
+      "label": "chat/completions stream",
+      "variant": "emphasis"
+    },
+    {
+      "id": "tokens",
+      "from": "llm",
+      "to": "pipeline",
+      "y": 442,
+      "label": "tokens",
+      "variant": "return",
+      "note": "each sentence's citations checked"
+    },
+    {
+      "id": "write",
+      "from": "pipeline",
+      "to": "redis",
+      "y": 470,
+      "label": "SET exact · HSET semantic",
+      "variant": "dashed",
+      "note": "7-day TTL; skipped for uploads"
+    },
+    {
+      "id": "events",
+      "from": "pipeline",
+      "to": "api",
+      "y": 498,
+      "label": "answer_chunks · final",
+      "variant": "return",
+      "note": "chunks stream as sentences pass"
+    },
+    {
+      "id": "sse",
+      "from": "api",
+      "to": "proxy",
+      "y": 526,
+      "label": "SSE events",
+      "variant": "return",
+      "note": "failure → SSE error event"
+    },
+    {
+      "id": "relay",
+      "from": "proxy",
+      "to": "browser",
+      "y": 554,
+      "label": "SSE passthrough",
+      "variant": "return",
+      "note": "final saved as the /query trace"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "proxy",
+      "from": 156,
+      "to": 560,
+      "type": "frontend"
+    },
+    {
+      "participant": "api",
+      "from": 184,
+      "to": 532,
+      "type": "backend"
+    },
+    {
+      "participant": "pipeline",
+      "from": 212,
+      "to": 504,
+      "type": "backend"
+    },
+    {
+      "participant": "postgres",
+      "from": 240,
+      "to": 252,
+      "type": "database"
+    },
+    {
+      "participant": "redis",
+      "from": 268,
+      "to": 280,
+      "type": "database"
+    },
+    {
+      "participant": "jina",
+      "from": 296,
+      "to": 308,
+      "type": "cloud"
+    },
+    {
+      "participant": "redis",
+      "from": 324,
+      "to": 336,
+      "type": "database"
+    },
+    {
+      "participant": "qdrant",
+      "from": 352,
+      "to": 364,
+      "type": "database"
+    },
+    {
+      "participant": "jina",
+      "from": 380,
+      "to": 392,
+      "type": "cloud"
+    },
+    {
+      "participant": "llm",
+      "from": 408,
+      "to": 448,
+      "type": "cloud"
+    },
+    {
+      "participant": "redis",
+      "from": 464,
+      "to": 476,
+      "type": "database"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Happy path shown",
+      "items": [
+        "Cache miss, CRAG grade 'correct', answer streamed sentence by sentence",
+        "Short-circuits: exact or semantic hit returns the cached answer; guardrail refusals and abstentions stream one fixed sentence"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Profile differences",
+      "items": [
+        "/v1/voice/query/stream first sends the audio to Sarvam speech-to-text and emits a transcript event, then runs this same pipeline",
+        "Local profile embeds and reranks in-process (FastEmbed ONNX) instead of calling Jina",
+        "OpenRouter takes over only if Groq fails before emitting a token"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Failure contract",
+      "items": [
+        "Registry, embedding, retrieval, rerank and generation failures → SSE error event (HTTP 503 on /v1/query)",
+        "Cache failures fail open"
+      ]
+    }
+  ]
+}
