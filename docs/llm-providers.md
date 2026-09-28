@@ -140,6 +140,20 @@ English, Hindi, Bengali, Telugu and Marathi, with no question lost. Long English
 answers remain the weakest case - count citation abstentions in the trace
 (`abstention_reason`) before blaming retrieval.
 
+### Answer language
+
+The self-corpus is English, so every source a Hindi or Tamil question retrieves is English,
+and without an instruction the model follows the sources. Prompt `v2` answered a Hindi CRAG
+question, a Tamil and a Telugu question in English on every one of three runs each. Prompt
+`v3` adds one line - answer in the question's language and script, keeping code and
+identifiers as written - and answered all 18 runs across English, Hindi, Bengali, Tamil and
+Telugu in the question's language, every one passing citation validation.
+
+The semantic cache is keyed by that language as well (the request's `language`, or the
+question's script when none is sent). Multilingual embeddings put a question and its
+translation almost on top of each other, so without it a Hindi asker was served the cached
+English answer.
+
 ## Provider change checklist
 
 1. Set the new provider env vars in a separate release.
