@@ -57,7 +57,7 @@ _UNREADABLE_AUDIO = {400, 413, 415, 422}
 def stt_error_status(error: ProviderError) -> int:
     """422 for audio the provider could not read, 503 when the provider is the problem."""
     if error.status_code in _UNREADABLE_AUDIO:
-        return status.HTTP_422_UNPROCESSABLE_ENTITY
+        return status.HTTP_422_UNPROCESSABLE_CONTENT
     return status.HTTP_503_SERVICE_UNAVAILABLE
 
 
@@ -123,7 +123,7 @@ def create_app(
     def validate_overrides(body: QueryRequest) -> None:
         if has_overrides(body.overrides) and not configured.query_overrides_allowed:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="query overrides are disabled on this deployment",
             )
 
@@ -223,7 +223,7 @@ def create_app(
                     status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=message
                 ) from exc
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=message
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=message
             ) from exc
         return {
             "document_id": result.document_id,
@@ -238,7 +238,7 @@ def create_app(
             await delete_user_document(configured, document_id)
         except DocumentIngestError as exc:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
             ) from exc
         return {"document_id": document_id, "status": "removed"}
 
