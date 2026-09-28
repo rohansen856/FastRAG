@@ -1,0 +1,443 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Corpus release runbook — ingest, calibrate, activate, gate",
+    "output": "docs/diagrams/09-release-workflow/release-workflow.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/rohansen856/FastRAG",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "41815d092f442e8bf4b91fb93c52bed8b1ec44f9"
+    }
+  },
+  "lanes": [
+    {
+      "id": "ingest",
+      "label": "scripts/ingest-self.py"
+    },
+    {
+      "id": "stores",
+      "label": "Qdrant + Postgres"
+    },
+    {
+      "id": "release",
+      "label": "Calibrate · deploy · gate"
+    },
+    {
+      "id": "failures",
+      "label": "Failure exits",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "build",
+      "label": "Build shadow index",
+      "fromCol": 0,
+      "toCol": 2
+    },
+    {
+      "id": "fit",
+      "label": "Fit · activate · deploy",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "ship",
+      "label": "Gate",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "dryrun",
+      "lane": "ingest",
+      "col": 0,
+      "type": "backend",
+      "label": "Dry run",
+      "sublabel": "counts · no writes",
+      "sources": [
+        {
+          "path": "scripts/ingest-self.py",
+          "line": 177,
+          "end_line": 191
+        },
+        {
+          "path": "scripts/ingest-self.py",
+          "line": 97,
+          "end_line": 115,
+          "label": "strategy checks"
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "build",
+      "lane": "ingest",
+      "col": 1,
+      "type": "backend",
+      "label": "Build",
+      "sublabel": "split · translate · chunk",
+      "sources": [
+        {
+          "path": "scripts/ingest-self.py",
+          "line": 126,
+          "end_line": 160
+        },
+        {
+          "path": "scripts/ingest-self.py",
+          "line": 197,
+          "end_line": 206,
+          "label": "build_from_chunks"
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "shadow",
+      "lane": "stores",
+      "col": 1,
+      "type": "database",
+      "label": "kb_{v} validated",
+      "sublabel": "shadow collection",
+      "sources": [
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 124,
+          "end_line": 137
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "evalsets",
+      "lane": "ingest",
+      "col": 2,
+      "type": "backend",
+      "label": "Eval sets",
+      "sublabel": "golden · calibration · pairs",
+      "sources": [
+        {
+          "path": "scripts/ingest-self.py",
+          "line": 260,
+          "end_line": 366
+        },
+        {
+          "path": "scripts/selfcorpus/evalsets.py",
+          "line": 71,
+          "end_line": 103,
+          "label": "check_minimums"
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "calibrate",
+      "lane": "release",
+      "col": 3,
+      "type": "backend",
+      "label": "Calibrate",
+      "sublabel": "fit gates on shadow",
+      "sources": [
+        {
+          "path": "src/fastrag/calibrate.py",
+          "line": 105,
+          "end_line": 201
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "activate",
+      "lane": "ingest",
+      "col": 4,
+      "type": "backend",
+      "label": "--activate",
+      "sublabel": "promote version",
+      "sources": [
+        {
+          "path": "scripts/ingest-self.py",
+          "line": 386,
+          "end_line": 397
+        },
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 68,
+          "end_line": 80
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "live",
+      "lane": "stores",
+      "col": 4,
+      "type": "database",
+      "label": "kb_current → kb_{v}",
+      "sublabel": "row active",
+      "sources": [
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 290,
+          "end_line": 304
+        },
+        {
+          "path": "src/fastrag/registry.py",
+          "line": 95,
+          "end_line": 109
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "deploy",
+      "lane": "release",
+      "col": 4,
+      "type": "cloud",
+      "label": "Deploy",
+      "sublabel": "calibration JSON · ready",
+      "sources": [
+        {
+          "path": "docs/deployment.md",
+          "line": 50,
+          "end_line": 66
+        },
+        {
+          "path": "src/fastrag/bootstrap.py",
+          "line": 214,
+          "end_line": 254,
+          "label": "startup checks"
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "goldengate",
+      "lane": "release",
+      "col": 5,
+      "type": "security",
+      "label": "Golden + bench",
+      "sublabel": "thresholds · P95 < 200 ms",
+      "sources": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "line": 49,
+          "end_line": 83
+        },
+        {
+          "path": "src/fastrag/evaluation.py",
+          "line": 189,
+          "end_line": 235
+        },
+        {
+          "path": "scripts/bench-latency.py",
+          "line": 176,
+          "end_line": 177
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "failbuild",
+      "lane": "failures",
+      "col": 1,
+      "type": "security",
+      "label": "failed",
+      "sublabel": "mark_failed",
+      "sources": [
+        {
+          "path": "src/fastrag/indexing.py",
+          "line": 141,
+          "end_line": 143
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "failmin",
+      "lane": "failures",
+      "col": 2,
+      "type": "security",
+      "label": "Nothing written",
+      "sublabel": "minimums missed",
+      "sources": [
+        {
+          "path": "scripts/selfcorpus/evalsets.py",
+          "line": 71,
+          "end_line": 103
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "failgate",
+      "lane": "failures",
+      "col": 3,
+      "type": "security",
+      "label": "RuntimeError",
+      "sublabel": "no gate at FAR ≤ 5%",
+      "sources": [
+        {
+          "path": "src/fastrag/calibrate.py",
+          "line": 24,
+          "end_line": 40
+        }
+      ],
+      "width": 132
+    },
+    {
+      "id": "notready",
+      "lane": "failures",
+      "col": 4,
+      "type": "security",
+      "label": "503 not_ready",
+      "sublabel": "version mismatch",
+      "sources": [
+        {
+          "path": "src/fastrag/api.py",
+          "line": 376,
+          "end_line": 384
+        },
+        {
+          "path": "src/fastrag/calibration.py",
+          "line": 107,
+          "end_line": 123
+        }
+      ],
+      "width": 132
+    }
+  ],
+  "mainPath": [
+    "dryrun",
+    "build",
+    "evalsets",
+    "calibrate",
+    "activate",
+    "deploy",
+    "goldengate"
+  ],
+  "edges": [
+    {
+      "id": "go",
+      "from": "dryrun",
+      "to": "build",
+      "label": "counts ok",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "shadow-write",
+      "from": "build",
+      "to": "shadow",
+      "label": "--no-activate",
+      "role": "branch",
+      "fromSide": "bottom"
+    },
+    {
+      "id": "labels",
+      "from": "build",
+      "to": "evalsets",
+      "label": "chunk ids",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "fit",
+      "from": "evalsets",
+      "to": "calibrate",
+      "label": "jsonl",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "promote",
+      "from": "calibrate",
+      "to": "activate",
+      "label": "gates",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "flip",
+      "from": "activate",
+      "to": "live",
+      "label": "alias flip",
+      "role": "branch",
+      "fromSide": "bottom"
+    },
+    {
+      "id": "ship",
+      "from": "activate",
+      "to": "deploy",
+      "label": "restart",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "verify",
+      "from": "deploy",
+      "to": "goldengate",
+      "label": "ready",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "build-error",
+      "from": "build",
+      "to": "failbuild",
+      "label": "error",
+      "role": "error",
+      "variant": "security"
+    },
+    {
+      "id": "too-few",
+      "from": "evalsets",
+      "to": "failmin",
+      "label": "too few",
+      "role": "error",
+      "variant": "security"
+    },
+    {
+      "id": "no-gate",
+      "from": "calibrate",
+      "to": "failgate",
+      "label": "no fit",
+      "role": "error",
+      "variant": "security"
+    },
+    {
+      "id": "mismatch",
+      "from": "deploy",
+      "to": "notready",
+      "label": "mismatch",
+      "role": "error",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Why this order",
+      "items": [
+        "Calibration is fitted against the shadow collection by name, before any traffic sees it",
+        "The artifact records content_version; startup refuses a calibration fitted to another index",
+        "Cache namespaces include content_version, so the flip needs no cache flush"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Gate thresholds",
+      "items": [
+        "Eval sets: golden ≥ 200 with ≥ 25% unanswerable; calibration ≥ 30 with ≥ 40 negatives; ≥ 30 cache pairs; splits disjoint",
+        "Golden gate: recall@20 ≥ 0.95, MRR@5 ≥ 0.85, faithfulness/relevancy/correctness ≥ 0.90, citation validity 1.0, false answers ≤ 0.05",
+        "Bench: --require-target exits non-zero when retrieval P95 ≥ 200 ms"
+      ]
+    }
+  ]
+}
