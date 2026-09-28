@@ -1,0 +1,8 @@
+# archify finalize evidence: browser checks, screenshots and receipts with local paths.
+# Regenerate with `archify finalize … --out-dir <folder>/.evidence/<run>`.
+.evidence/
+*.delivery.json
+*.finalize.json
+*.finalize-summary.json
+*.browser-check.json
+.candidate.*

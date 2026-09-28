@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "FastRAG — System Context",
+    "output": "docs/diagrams/01-system-context/system-context.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/rohansen856/FastRAG",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "41815d092f442e8bf4b91fb93c52bed8b1ec44f9"
+    }
+  },
+  "components": [
+    {
+      "id": "github",
+      "type": "external",
+      "label": "GitHub",
+      "sublabel": "citation targets @ commit",
+      "pos": [40, 40],
+      "size": [170, 64],
+      "sources": [
+        { "path": "scripts/selfcorpus/sources.py", "line": 161, "end_line": 185, "label": "source_uri → blob@sha#L" }
+      ]
+    },
+    {
+      "id": "hf",
+      "type": "cloud",
+      "label": "Hugging Face Hub",
+      "sublabel": "ONNX model download",
+      "pos": [410, 40],
+      "size": [180, 64],
+      "sources": [
+        { "path": "src/fastrag/download_models.py", "line": 12, "end_line": 29, "label": "snapshot_download" }
+      ]
+    },
+    {
+      "id": "user",
+      "type": "external",
+      "label": "End user",
+      "sublabel": "browser · website",
+      "pos": [40, 220],
+      "size": [170, 64],
+      "sources": [
+        { "path": "website/lib/api.ts", "line": 171, "end_line": 206, "label": "textQuery / voiceQuery" },
+        { "path": "website/app/api/rag/[...path]/route.ts", "line": 22, "end_line": 37, "label": "proxy allowlist" }
+      ]
+    },
+    {
+      "id": "operator",
+      "type": "external",
+      "label": "Operator",
+      "sublabel": "console · admin · CLIs",
+      "pos": [40, 370],
+      "size": [170, 64],
+      "sources": [
+        { "path": "web/app/page.tsx", "line": 24, "end_line": 63, "label": "operator console" },
+        { "path": "src/fastrag/admin.py", "line": 19, "end_line": 83, "label": "admin router" },
+        { "path": "scripts/ingest-self.py", "line": 400, "end_line": 462, "label": "ingest CLI" }
+      ]
+    },
+    {
+      "id": "ci",
+      "type": "external",
+      "label": "CI golden gate",
+      "sublabel": "GitHub Actions",
+      "pos": [40, 520],
+      "size": [170, 64],
+      "sources": [
+        { "path": ".github/workflows/ci.yml", "line": 49, "end_line": 83, "label": "golden-gate job" }
+      ]
+    },
+    {
+      "id": "fastrag",
+      "type": "backend",
+      "label": "FastRAG",
+      "sublabel": "voice RAG API + web apps",
+      "tag": "cited or silent",
+      "pos": [380, 300],
+      "size": [240, 130],
+      "sources": [
+        { "path": "src/fastrag/api.py", "line": 160, "end_line": 401, "label": "HTTP routes" },
+        { "path": "src/fastrag/pipeline.py", "line": 147, "end_line": 548, "label": "query pipeline" }
+      ]
+    },
+    {
+      "id": "jina",
+      "type": "cloud",
+      "label": "Jina AI",
+      "sublabel": "embeddings + rerank",
+      "pos": [840, 170],
+      "size": [200, 64],
+      "sources": [
+        { "path": "src/fastrag/adapters/jina.py", "line": 35, "end_line": 51, "label": "HTTPS client" },
+        { "path": "src/fastrag/config.py", "line": 71, "end_line": 71, "label": "api.jina.ai" }
+      ]
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "LLM endpoint",
+      "sublabel": "OpenAI-compatible API",
+      "tag": "Groq · OpenRouter · Ollama",
+      "pos": [840, 300],
+      "size": [200, 64],
+      "sources": [
+        { "path": "src/fastrag/adapters/generation.py", "line": 61, "end_line": 102, "label": "chat/completions" },
+        { "path": "src/fastrag/adapters/generation.py", "line": 219, "end_line": 271, "label": "FallbackGenerator" },
+        { "path": ".env.local.example", "line": 23, "end_line": 27, "label": "Ollama (local)" }
+      ]
+    },
+    {
+      "id": "stt",
+      "type": "cloud",
+      "label": "Sarvam STT",
+      "sublabel": "ElevenLabs optional",
+      "pos": [840, 430],
+      "size": [200, 64],
+      "sources": [
+        { "path": "src/fastrag/adapters/stt.py", "line": 52, "end_line": 59, "label": "Sarvam" },
+        { "path": "src/fastrag/adapters/stt.py", "line": 112, "end_line": 118, "label": "ElevenLabs" }
+      ]
+    },
+    {
+      "id": "langfuse",
+      "type": "cloud",
+      "label": "Langfuse",
+      "sublabel": "traces · opt-in",
+      "pos": [840, 560],
+      "size": [200, 64],
+      "sources": [
+        { "path": "src/fastrag/observability.py", "line": 51, "end_line": 81, "label": "observation()" }
+      ]
+    },
+    {
+      "id": "qdrant",
+      "type": "database",
+      "label": "Qdrant",
+      "sublabel": "vector index",
+      "pos": [200, 680],
+      "size": [170, 64],
+      "sources": [
+        { "path": "src/fastrag/adapters/retrieval.py", "line": 11, "end_line": 23, "label": "connect_qdrant" },
+        { "path": "src/fastrag/adapters/retrieval.py", "line": 152, "end_line": 186, "label": "hybrid query" }
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "Postgres / Neon",
+      "sublabel": "index registry",
+      "pos": [415, 680],
+      "size": [170, 64],
+      "sources": [
+        { "path": "src/fastrag/registry.py", "line": 36, "end_line": 59, "label": "index_manifests DDL" }
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis",
+      "sublabel": "answer cache · RQ",
+      "pos": [630, 680],
+      "size": [170, 64],
+      "sources": [
+        { "path": "src/fastrag/adapters/cache.py", "line": 47, "end_line": 52, "label": "Redis.from_url" },
+        { "path": "src/fastrag/admin.py", "line": 26, "end_line": 27, "label": "RQ ingestion queue" }
+      ]
+    }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Model & speech providers", "wraps": ["jina", "llm", "stt"] },
+    { "kind": "region", "label": "Data stores", "wraps": ["qdrant", "postgres", "redis"] }
+  ],
+  "connections": [
+    { "id": "user-ask", "from": "user", "to": "fastrag", "label": "HTTPS · SSE", "variant": "emphasis" },
+    { "id": "user-cites", "from": "user", "to": "github", "label": "opens citations", "variant": "dashed" },
+    { "id": "operator-admin", "from": "operator", "to": "fastrag", "label": "admin + ingest" },
+    { "id": "ci-eval", "from": "ci", "to": "fastrag", "label": "eval /v1/query" },
+    { "id": "boot-models", "from": "fastrag", "to": "hf", "label": "model download", "variant": "dashed" },
+    { "id": "embed-rerank", "from": "fastrag", "to": "jina", "label": "embed · rerank" },
+    { "id": "generate", "from": "fastrag", "to": "llm", "label": "stream answer", "variant": "emphasis" },
+    { "id": "transcribe", "from": "fastrag", "to": "stt", "label": "transcribe" },
+    { "id": "trace", "from": "fastrag", "to": "langfuse", "label": "spans", "variant": "dashed" },
+    { "id": "search", "from": "fastrag", "to": "qdrant", "label": "search" },
+    { "id": "registry", "from": "fastrag", "to": "postgres", "label": "SQL" },
+    { "id": "cache", "from": "fastrag", "to": "redis", "label": "cache" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Inside the FastRAG box",
+      "items": [
+        "FastAPI API (Vercel function or Docker), the website and operator console (Next.js), and offline scripts — see diagram 02",
+        "The corpus is FastRAG's own repo: scripts/ingest-self.py walks a local checkout with git ls-files; citations link to GitHub at the indexed commit"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Configured, not always used",
+      "items": [
+        "Cloud profile: Jina + Groq, OpenRouter fallback before the first token only",
+        "Local profile: FastEmbed ONNX models and Ollama on the host",
+        "ElevenLabs STT and Langfuse tracing are opt-in"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Boundary controls",
+      "items": [
+        "Bearer query key / admin key; frontends inject a server-only token",
+        "Unauthenticated: /health/*, /metrics, FastAPI /docs",
+        "No inbound rate limiting in app or proxy"
+      ]
+    }
+  ]
+}
