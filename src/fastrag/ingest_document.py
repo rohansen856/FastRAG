@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import tempfile
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -69,7 +69,8 @@ class DocumentIngester:
             )
 
         document_id = f"user-{uuid.uuid4().hex[:20]}"
-        display = title or Path(filename or "upload").name
+        uploaded_name = Path(filename or "upload").name
+        display = title or uploaded_name
         suffix = suffix_of(filename) or ".txt"
 
         await self._registry.initialize()
@@ -84,6 +85,8 @@ class DocumentIngester:
             document = await asyncio.to_thread(
                 parse_file, temp_path, document_id=document_id, title=display
             )
+            # Cite what the caller uploaded; the temp path means nothing to them.
+            document = replace(document, source_uri=uploaded_name)
             chunk_strategy = build_strategy(
                 strategy,
                 embedder=self._embedder,
