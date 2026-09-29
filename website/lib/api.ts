@@ -16,11 +16,25 @@ export interface StreamHandlers {
 }
 
 /**
+ * How long a stream may go without receiving a byte before it is abandoned. It matches the
+ * proxy route's 60s maxDuration (website/vercel.json): past that, the platform has already
+ * ended the request, so waiting longer only leaves the UI spinning.
+ */
+export const STREAM_IDLE_TIMEOUT_MS = 60_000;
+
+const TIMEOUT_MESSAGE = `No response from the API in ${STREAM_IDLE_TIMEOUT_MS / 1000} seconds. Check your connection and try again.`;
+const CUT_OFF_MESSAGE = "The answer stream ended before it finished. Try again.";
+
+/**
  * Reads an SSE stream from the proxy route.
  *
  * `EventSource` cannot issue POST requests, so the stream is read from `fetch`
  * and the wire format is parsed here. Events are separated by a blank line and
  * a single event may carry several `data:` lines.
+ *
+ * Every request ends in exactly one of `onFinal` or `onError`: a stream that goes quiet for
+ * STREAM_IDLE_TIMEOUT_MS, or closes without a `final` or `error` event, reports an error.
+ * Aborting through `signal` still rejects, as before, so callers can tell a cancel apart.
  */
 export async function streamEvents(
   path: string,
@@ -29,31 +43,75 @@ export async function streamEvents(
   handlers: StreamHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(`/api/rag/${path}`, { method: "POST", body, headers, signal });
-  if (!response.ok || !response.body) {
-    const detail = await response.text().catch(() => response.statusText);
-    handlers.onError?.(detail || `request failed with ${response.status}`);
-    return;
-  }
+  const controller = new AbortController();
+  const forwardAbort = () => controller.abort(signal?.reason);
+  if (signal?.aborted) forwardAbort();
+  else signal?.addEventListener("abort", forwardAbort, { once: true });
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
+  let timedOut = false;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const resetIdleTimer = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, STREAM_IDLE_TIMEOUT_MS);
+  };
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    // Upstream may emit CRLF (Starlette/uvicorn). Normalize so frame splits work.
-    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  let finished = false;
+  const tracked: StreamHandlers = {
+    ...handlers,
+    onFinal: (response) => {
+      finished = true;
+      handlers.onFinal?.(response);
+    },
+    onError: (message) => {
+      finished = true;
+      handlers.onError?.(message);
+    },
+  };
 
-    let boundary = buffer.indexOf("\n\n");
-    while (boundary !== -1) {
-      dispatch(buffer.slice(0, boundary), handlers);
-      buffer = buffer.slice(boundary + 2);
-      boundary = buffer.indexOf("\n\n");
+  resetIdleTimer();
+  try {
+    const response = await fetch(`/api/rag/${path}`, {
+      method: "POST",
+      body,
+      headers,
+      signal: controller.signal,
+    });
+    if (!response.ok || !response.body) {
+      const detail = await response.text().catch(() => response.statusText);
+      tracked.onError?.(detail || `request failed with ${response.status}`);
+      return;
     }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      resetIdleTimer();
+      // Upstream may emit CRLF (Starlette/uvicorn). Normalize so frame splits work.
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary !== -1) {
+        dispatch(buffer.slice(0, boundary), tracked);
+        buffer = buffer.slice(boundary + 2);
+        boundary = buffer.indexOf("\n\n");
+      }
+    }
+    if (buffer.trim()) dispatch(buffer, tracked);
+    if (!finished) tracked.onError?.(CUT_OFF_MESSAGE);
+  } catch (cause) {
+    if (!timedOut) throw cause;
+    if (!finished) tracked.onError?.(TIMEOUT_MESSAGE);
+  } finally {
+    clearTimeout(idleTimer);
+    signal?.removeEventListener("abort", forwardAbort);
   }
-  if (buffer.trim()) dispatch(buffer, handlers);
 }
 
 function dispatch(frame: string, handlers: StreamHandlers): void {
