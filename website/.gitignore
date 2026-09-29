@@ -26,3 +26,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+
+# copied from docs/diagrams at build time (scripts/copy-diagrams.mjs)
+/public/diagrams/
