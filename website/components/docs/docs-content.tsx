@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ArrowUpRight } from "lucide-react";
 import { DOC_SECTIONS } from "@/lib/docs";
+import { MermaidDiagram } from "./mermaid-diagram";
 
 export function DocsIndex() {
   const [visible, setVisible] = useState(false);
@@ -162,11 +163,22 @@ export function DocsArticle({ title, content }: DocsArticleProps) {
               </code>
             );
           },
-          pre: ({ children }) => (
-            <pre className="mb-6 overflow-x-auto rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4">
-              {children}
-            </pre>
-          ),
+          pre: ({ node, children }) => {
+            const code = node?.children[0];
+            if (
+              code?.type === "element" &&
+              code.tagName === "code" &&
+              String(code.properties?.className ?? "").includes("language-mermaid")
+            ) {
+              const source = code.children.map((child) => ("value" in child ? child.value : "")).join("");
+              return <MermaidDiagram chart={source.trim()} />;
+            }
+            return (
+              <pre className="mb-6 overflow-x-auto rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4">
+                {children}
+              </pre>
+            );
+          },
           table: ({ children }) => (
             <div className="mb-6 overflow-x-auto rounded-xl border border-foreground/10">
               <table className="w-full text-sm">{children}</table>
