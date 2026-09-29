@@ -28,7 +28,7 @@ export default async function DocSlugPage({ params }: { params: Promise<{ slug: 
   if (!doc) notFound();
 
   const raw = loadDocMarkdown(doc.file);
-  const content = rewriteDocLinks(raw.replace(/^#\s+.+\n+/, ""));
+  const content = rewriteDocLinks(raw.replace(/^#\s+.+\n+/, ""), doc.file);
 
   return (
     <DocsShell>

@@ -49,6 +49,23 @@ export const DOC_SECTIONS: { label: string; pages: DocPage[] }[] = [
     ],
   },
   {
+    label: "Diagrams",
+    pages: [
+      {
+        slug: "diagrams",
+        title: "Architecture diagrams",
+        file: "diagrams/README.md",
+        description: "Context, containers, sequences, data, deployment, lifecycles, network.",
+      },
+      {
+        slug: "data-model-erd",
+        title: "Data model (ERD)",
+        file: "diagrams/05-data-model/erd.md",
+        description: "Entities, attributes and cardinalities across Postgres, Qdrant and Redis.",
+      },
+    ],
+  },
+  {
     label: "Pipeline",
     pages: [
       {
@@ -122,15 +139,38 @@ export function getDocBySlug(slug: string): DocPage | undefined {
   return ALL_DOC_PAGES.find((page) => page.slug === slug);
 }
 
-/** Rewrite in-repo .md links to on-site /docs routes; send src links to GitHub. */
-export function rewriteDocLinks(content: string): string {
+/** Resolve `href` against the folder of `file`, both relative to docs/ (e.g. "diagrams/x.md"). */
+function resolveDocPath(file: string, href: string): string {
+  const parts = file.split("/").slice(0, -1);
+  for (const segment of href.split("/")) {
+    if (segment === "..") parts.pop();
+    else if (segment !== "." && segment !== "") parts.push(segment);
+  }
+  return parts.join("/");
+}
+
+/**
+ * Rewrite in-repo links for the site: .md files to /docs routes (or GitHub when the file has
+ * no page), rendered diagrams to their /diagrams copies, and src links to GitHub. Relative
+ * links resolve from `file`, the markdown file's path under docs/.
+ */
+export function rewriteDocLinks(content: string, file: string): string {
   const withMdLinks = content.replace(/\]\(([^)]+\.md)\)/g, (_match, href: string) => {
-    const file = href.split("/").pop() ?? href;
-    const slug = FILE_TO_SLUG[file];
-    return slug ? `](/docs/${slug})` : `](${GITHUB_URL}/blob/master/docs/${file})`;
+    if (/^[a-z]+:\/\//i.test(href)) return `](${href})`;
+    const path = resolveDocPath(file, href);
+    const slug = FILE_TO_SLUG[path];
+    return slug ? `](/docs/${slug})` : `](${GITHUB_URL}/blob/master/docs/${path})`;
   });
 
-  return withMdLinks.replace(
+  const withDiagrams = withMdLinks.replace(/\]\(([^)]+\.html)\)/g, (_match, href: string) => {
+    if (/^[a-z]+:\/\//i.test(href)) return `](${href})`;
+    const path = resolveDocPath(file, href);
+    return path.startsWith("diagrams/")
+      ? `](/${path})`
+      : `](${GITHUB_URL}/blob/master/docs/${path})`;
+  });
+
+  return withDiagrams.replace(
     /\]\(\.\.\/src\/([^)]+)\)/g,
     `](${GITHUB_URL}/blob/master/src/$1)`,
   );

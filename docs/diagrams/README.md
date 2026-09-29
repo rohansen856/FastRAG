@@ -5,6 +5,11 @@ at commit `41815d0`. Every node cites the lines it is drawn from, and in the HTM
 `SRC` badge links to those lines on GitHub. Open the `.html` files in a browser; each one is a
 self-contained file.
 
+On the website this page is [/docs/diagrams](https://fastrag.vercel.app/docs/diagrams), and each
+diagram is served at `/diagrams/<folder>/<name>.html`; `website/scripts/copy-diagrams.mjs` copies
+them into the site at build time. GitHub shows the `.html` files as source, so use the website
+or a local checkout to view them.
+
 | # | Diagram | Type | What it documents |
 |---|---------|------|-------------------|
 | 1 | [System context](01-system-context/system-context.html) | architecture | FastRAG as one system, with its users, CI, model providers, data stores and GitHub |
