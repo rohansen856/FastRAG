@@ -12,7 +12,7 @@ frontends; docs in `docs/`.
 | `website/` | Marketing landing (hero ask + chat, `/query` pipeline trace). Dev: `:3000` |
 | `web/` | Operator console (latency, strategies, CRAG, bench). Dev: `:3001` |
 | `docs/` | Architecture, providers, deploy, voice, chunking, CRAG, etc. |
-| `PRODUCT.md` / `DESIGN.md` | Product truth (users, positioning, evidence) and the website's design system; `.impeccable/design.json` extends DESIGN.md |
+| `PRODUCT.md` / `DESIGN.md` | Product truth (users, positioning, evidence) and the website's design system |
 | `compose.yaml` / `render.yaml` / `vercel.json` | Local stack; Render Blueprint; Vercel FastAPI function |
 | `.env.local.example` / `.env.cloud.example` | Profile templates - never commit real `.env` |
 

@@ -41,3 +41,10 @@ out/
 .vercel/
 next-env.d.ts
 *.tsbuildinfo
+
+# Local editor and design-tool state
+.cursor/
+.impeccable/
+
+# Generated launch-video assets
+brag-output/
