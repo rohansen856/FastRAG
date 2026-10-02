@@ -2,8 +2,8 @@
 
 Every `QueryResponse` includes an optional `trace` object with stage timings, retrieval
 funnel data, calibration thresholds used, model fingerprints, and `overrides_applied` when
-per-request config was changed. The marketing site exposes this on `/query` for the latest
-browser-session run.
+per-request config was changed. The marketing site shows it on `/query`, for runs from this
+browser tab and for three recorded examples.
 
 ## Response shape
 
@@ -84,18 +84,24 @@ Per-request LLM API keys are never stored in the trace (redacted in `overrides_a
 
 ## Website `/query` page
 
-[`website/`](../website/) saves the latest hero answer trace in `sessionStorage` and links to
-`/query`:
+`/query` opens on the latest run from this browser tab. With none, it offers an ask box and
+three recorded runs, one per outcome (answered, abstained, refused).
 
-1. Run a question on the home page (text or voice).
-2. Open **View pipeline trace** (or go to `/query` directly).
-3. Use the **Experiment** panel to edit strategy, language, cache, CRAG, K limits, thresholds,
-   and optional LLM settings, then **Re-run pipeline** (streams like the hero).
-4. Toggle **Original run** / **Latest re-run** to compare traces.
-5. **Reset to original** restores the baseline trace view and form; the panel stays open.
+1. Ask a question in the bar at the top of `/query`, or on the home page and open **View
+   pipeline trace**. Each run is saved in `sessionStorage` and listed under **Runs**.
+2. Read the run top to bottom: the answer and its sources, the **Decision** (the top rerank
+   score against the abstention gate and the CRAG confident band), **Timing** (one waterfall
+   of every stage, including time outside the recorded stages), and **Evidence** (the chunk
+   funnel from retrieved to cited, with the thresholds marked on the rerank scores).
+3. Open **Experiment** to change strategy, language, cache, CRAG, K limits, thresholds or LLM
+   settings and **Re-run** the same question (streams like the hero).
+4. Switch between **Original** and **Re-run** to compare; **Back to original** returns to the
+   baseline.
 
-Traces are session-only (not persisted server-side). `/query/[queryId]` redirects to `/query`
-because only the latest trace is kept in this browser tab.
+The recorded runs are real responses from the hosted API (cloud profile), stored in
+`website/public/query-examples/` and fetched only when opened; `/query?example=answered` (or
+`abstained`, `refused`) links straight to one. Traces are never persisted server-side, and
+`/query/[queryId]` redirects to `/query`.
 
 Components live under `website/components/query-trace/`; form logic is in
 `website/lib/query-config.ts` (`buildOverrides` only sends fields that differ from the

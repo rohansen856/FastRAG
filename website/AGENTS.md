@@ -11,8 +11,9 @@ This block is written and re-added by `next dev` - verify at `node_modules/next/
 # FastRAG `website/`
 
 Marketing landing for FastRAG. Hero text + mic ask, chat answers with citations below the
-marquee. **`/query`** - pipeline trace bento (timeline, path diagram, funnel, citations) plus
-Experiment panel to re-run with `overrides`. Traces stored in `sessionStorage` only.
+marquee. **`/query`** - pipeline trace (answer, decision, timing waterfall, evidence funnel) plus
+an Experiment panel to re-run with `overrides`. Traces stored in `sessionStorage` only;
+recorded examples in `public/query-examples/`.
 
 Proxies API via `app/api/rag/[...path]/route.ts`.
 

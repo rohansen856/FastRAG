@@ -31,7 +31,8 @@ Normalize SSE `\r\n` → `\n` in client parsers. Mic audio is re-encoded to 16 k
 `lib/audio.ts` in each app.
 
 **Query trace (`website/` only):** hero saves `response.trace` to `sessionStorage`;
-`/query` renders bento trace UI + Experiment panel. Re-runs call `/v1/query/stream` with
+`/query` renders the trace (answer, decision, timing waterfall, evidence) + Experiment panel,
+and offers recorded example runs from `website/public/query-examples/`. Re-runs call `/v1/query/stream` with
 `overrides` (see `docs/query-trace.md`). Overrides allowed when
 `FASTRAG_ALLOW_QUERY_OVERRIDES=true` or `FASTRAG_ENVIRONMENT=development`.
 
