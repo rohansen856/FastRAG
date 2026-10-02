@@ -1,104 +1,82 @@
-import Link from "next/link";
-import type { QueryResponse } from "@/lib/types";
 import type { StoredQueryTrace } from "@/lib/query-trace-store";
+import { verdictFor } from "@/lib/trace-format";
+import { OutcomeDot } from "./outcome-dot";
 
-const OUTCOME_LABELS: Record<string, string> = {
-  answered: "Answered",
-  no_answer: "Abstained",
-  refused: "Refused",
-};
+const TONE_TEXT = {
+  ok: "text-emerald-800",
+  warn: "text-amber-800",
+  stop: "text-rose-700",
+} as const;
+
+function recordedLabel(savedAt: number): string {
+  return new Date(savedAt).toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export function TraceHeader({
-  stored,
-  response,
-  compareMode = "active",
-  hasBaseline = false,
-  onCompareModeChange,
-  isRerunView = false,
+  run,
+  example,
+  compare,
 }: {
-  stored: StoredQueryTrace;
-  response: QueryResponse;
-  compareMode?: "active" | "baseline";
-  hasBaseline?: boolean;
-  onCompareModeChange?: (mode: "active" | "baseline") => void;
-  isRerunView?: boolean;
+  run: StoredQueryTrace;
+  example: boolean;
+  compare?: {
+    mode: "baseline" | "active";
+    onChange: (mode: "baseline" | "active") => void;
+  };
 }) {
+  const { response } = run;
+  const verdict = verdictFor(response);
   const overrides = response.trace?.overrides_applied;
+  const overridden = Boolean(overrides && Object.keys(overrides).length);
 
   return (
-    <header className="mb-10 space-y-6">
-      <Link
-        href="/#answer"
-        className="inline-flex items-center gap-2 text-sm font-mono text-muted-foreground hover:text-foreground transition-colors"
-      >
-        ← Back to conversation
-      </Link>
-      <div>
-        <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-4">
-          <span className="w-8 h-px bg-foreground/30" />
-          pipeline trace
-        </span>
-        <h1 className="text-3xl lg:text-4xl font-display tracking-tight mb-3">Query pipeline</h1>
-        <p className="text-lg text-foreground leading-relaxed max-w-3xl">{stored.question}</p>
-      </div>
+    <header className="pb-10 pt-10 lg:pt-14">
+      <h1 className="max-w-[28ch] text-balance font-display text-3xl leading-[1.1] tracking-tight lg:text-5xl">
+        {run.question}
+      </h1>
 
-      {hasBaseline && onCompareModeChange && (
-        <div className="inline-flex rounded-full border border-foreground/15 p-1 text-xs font-mono">
-          <button
-            type="button"
-            onClick={() => onCompareModeChange("baseline")}
-            className={`rounded-full px-3 py-1 transition-colors ${
-              compareMode === "baseline"
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Original run
-          </button>
-          <button
-            type="button"
-            onClick={() => onCompareModeChange("active")}
-            className={`rounded-full px-3 py-1 transition-colors ${
-              compareMode === "active"
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Latest re-run
-          </button>
-        </div>
-      )}
+      <p className="mt-5 flex max-w-[68ch] items-baseline gap-2.5 text-lg leading-relaxed">
+        <OutcomeDot outcome={response.outcome} className="-translate-y-0.5" />
+        <span>
+          <span className={`font-medium ${TONE_TEXT[verdict.tone]}`}>{verdict.label}.</span>{" "}
+          <span className="text-muted-foreground">{verdict.sentence}</span>
+        </span>
+      </p>
 
-      <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
-        <span className="rounded-full border border-foreground/15 px-2.5 py-0.5">
-          {OUTCOME_LABELS[response.outcome] ?? response.outcome}
+      <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3 text-sm text-muted-foreground">
+        {compare && (
+          <div className="inline-flex rounded-full border border-foreground/15 p-0.5" role="group" aria-label="Which run to show">
+            {(["baseline", "active"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={compare.mode === mode}
+                onClick={() => compare.onChange(mode)}
+                className={`rounded-full px-3 py-1 transition-colors ${
+                  compare.mode === mode ? "bg-foreground text-background" : "hover:text-foreground"
+                }`}
+              >
+                {mode === "baseline" ? "Original" : "Re-run"}
+              </button>
+            ))}
+          </div>
+        )}
+        <span>
+          {example ? "Recorded example" : "This session"} · {recordedLabel(run.savedAt)}
         </span>
-        {isRerunView && (
-          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-emerald-900">
-            Re-run
+        {response.trace && (
+          <span>
+            {response.trace.profile} profile · {response.trace.strategy} chunks
           </span>
         )}
-        {response.cache_status !== "miss" && (
-          <span className="rounded-full border border-foreground/15 px-2.5 py-0.5 text-muted-foreground">
-            {response.cache_status} cache
-          </span>
-        )}
-        {stored.scopeMode && (
-          <span className="rounded-full border border-foreground/15 px-2.5 py-0.5 text-muted-foreground">
-            {stored.scopeMode === "document" ? "Attached files" : "Full corpus"}
-          </span>
-        )}
-        {overrides && Object.keys(overrides).length > 0 && (
-          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-amber-900">
-            Overrides applied
-          </span>
-        )}
-        <span className="rounded-full border border-foreground/15 px-2.5 py-0.5 text-muted-foreground">
-          query {response.query_id.slice(0, 8)}…
-        </span>
-        <span className="rounded-full border border-foreground/15 px-2.5 py-0.5 text-muted-foreground">
-          trace {response.trace_id.slice(0, 8)}…
-        </span>
+        {run.scopeMode === "document" && <span>attached files only</span>}
+        {overridden && <span className="text-amber-800">overrides applied</span>}
       </div>
     </header>
   );

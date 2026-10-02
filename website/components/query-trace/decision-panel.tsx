@@ -1,113 +1,111 @@
-import type { CragTrace, GuardrailDecision, Transcript } from "@/lib/types";
+import type { QueryResponse } from "@/lib/types";
+import { guardrailLabel } from "@/lib/trace-format";
+import { TracePanel } from "./trace-panel";
 
-const CRAG_COPY: Record<string, { label: string; detail: string }> = {
-  correct: {
-    label: "Context accepted",
-    detail: "Top reranker score cleared the confident band.",
-  },
-  ambiguous: {
-    label: "Context refined",
-    detail: "Passages were split into strips; only relevant strips kept.",
-  },
-  incorrect: {
-    label: "Query rewritten",
-    detail: "Retrieval scored below the abstention gate; query rewritten once.",
-  },
-  disabled: {
-    label: "CRAG disabled",
-    detail: "Correction is turned off for this run.",
-  },
+const CRAG_OUTCOME: Record<string, string> = {
+  correct: "cleared the confident band, so the context was used as retrieved.",
+  ambiguous: "landed between the gate and the confident band, so passages were cut into strips and only relevant strips were kept.",
+  incorrect: "fell below the gate, so CRAG rewrote the query and searched again.",
+  disabled: "was not graded: CRAG was off for this run.",
 };
 
-const GUARDRAIL_LABELS: Record<string, string> = {
-  off_topic: "Off topic",
-  unsafe: "Unsafe request",
-  prompt_injection: "Prompt injection",
-  unsupported_language: "Unsupported language",
-  empty: "Empty question",
-};
-
-export function DecisionPanel({
-  guardrail,
-  crag,
-  abstentionReason,
+/** The 0 to 1 rerank scale with this run's gate and confident band, and where its top score fell. */
+function GateScale({
+  score,
+  gate,
+  confident,
 }: {
-  guardrail: GuardrailDecision | null;
-  crag: CragTrace | null;
-  abstentionReason: string | null;
+  score: number | null;
+  gate: number;
+  confident: number;
 }) {
-  const cragCopy = crag ? CRAG_COPY[crag.action] : null;
-
+  const pct = (value: number) => `${Math.min(100, Math.max(0, value * 100))}%`;
   return (
-    <div className="space-y-4">
-      {guardrail && !guardrail.allowed && guardrail.rule && (
-        <div className="rounded-lg border border-rose-500/25 bg-rose-500/5 p-4">
-          <p className="text-sm font-medium text-rose-800">
-            Blocked: {GUARDRAIL_LABELS[guardrail.rule] ?? guardrail.rule}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-            {guardrail.detail}
-            {guardrail.score !== null && ` · similarity ${guardrail.score.toFixed(3)}`}
-          </p>
+    <figure className="mt-1">
+      <div className="relative h-9">
+        <div className="absolute inset-x-0 top-3 flex h-3 overflow-hidden rounded-[2px]">
+          <span className="bg-foreground/[0.08]" style={{ width: pct(gate) }} />
+          <span className="bg-foreground/[0.18]" style={{ width: pct(confident - gate) }} />
+          <span className="flex-1 bg-foreground/[0.32]" />
         </div>
-      )}
-
-      {crag && cragCopy && (
-        <div className="rounded-lg border border-foreground/10 bg-foreground/[0.02] p-4">
-          <p className="text-sm font-medium">{cragCopy.label}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{cragCopy.detail}</p>
-          <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs font-mono">
-            {crag.top_score !== null && (
-              <div>
-                <dt className="text-muted-foreground">top score</dt>
-                <dd>{crag.top_score.toFixed(3)}</dd>
-              </div>
-            )}
-            {crag.kept_strips !== null && (
-              <div>
-                <dt className="text-muted-foreground">strips kept</dt>
-                <dd>{crag.kept_strips}</dd>
-              </div>
-            )}
-            {crag.rewrites > 0 && (
-              <div>
-                <dt className="text-muted-foreground">rewrites</dt>
-                <dd>{crag.rewrites}</dd>
-              </div>
-            )}
-          </dl>
-          {crag.rewritten_query && (
-            <p className="mt-2 rounded bg-foreground/[0.04] px-2 py-1 font-mono text-xs">
-              → {crag.rewritten_query}
-            </p>
-          )}
-        </div>
-      )}
-
-      {abstentionReason && (
-        <div className="rounded-lg border border-foreground/10 bg-foreground/[0.02] p-4">
-          <p className="text-sm font-medium">Abstention</p>
-          <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{abstentionReason}</p>
-        </div>
-      )}
-
-      {!guardrail && !crag && !abstentionReason && (
-        <p className="text-sm text-muted-foreground">No guardrail or CRAG decisions recorded.</p>
-      )}
-    </div>
+        {score !== null && (
+          <span className="absolute top-0 flex -translate-x-1/2 flex-col items-center" style={{ left: pct(score) }}>
+            <span className="h-[1.375rem] w-0.5 rounded-full bg-foreground" />
+            <span className="mt-0.5 rounded-full bg-foreground px-1.5 text-[11px] leading-4 text-background tabular-nums">
+              {score.toFixed(3)}
+            </span>
+          </span>
+        )}
+      </div>
+      <figcaption className="mt-5 grid grid-cols-3 gap-2 text-[11px] leading-snug text-muted-foreground">
+        <span>
+          <span className="block text-foreground">Rewrite or abstain</span>below {gate.toFixed(3)}
+        </span>
+        <span>
+          <span className="block text-foreground">Refine strips</span>
+          {gate.toFixed(3)}–{confident.toFixed(3)}
+        </span>
+        <span className="text-right">
+          <span className="block text-foreground">Accept</span>above {confident.toFixed(3)}
+        </span>
+      </figcaption>
+    </figure>
   );
 }
 
-export function TranscriptPanel({ transcript }: { transcript: Transcript | null }) {
-  if (!transcript) return null;
+export function DecisionPanel({ response }: { response: QueryResponse }) {
+  const { guardrail, crag, trace } = response;
+
+  if (guardrail && !guardrail.allowed) {
+    return (
+      <TracePanel id="decision" title="Decision">
+        <p className="text-sm leading-relaxed">
+          <span className="font-medium text-rose-700">Blocked: {guardrailLabel(guardrail.rule)}.</span>{" "}
+          <span className="text-muted-foreground">
+            The text guardrail matched {guardrail.detail ? `an ${guardrail.detail}` : "this question"}
+            {guardrail.score !== null ? ` (similarity ${guardrail.score.toFixed(3)})` : ""}. Guardrails run
+            first, before anything is embedded or retrieved.
+          </span>
+        </p>
+      </TracePanel>
+    );
+  }
+
+  const gate = trace?.reranker_threshold ?? null;
+  const confident = trace?.crag_confident_threshold ?? null;
+  const top = crag?.top_score ?? trace?.reranked[0]?.score ?? null;
+
   return (
-    <div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-4">
-      <p className="text-sm text-foreground leading-relaxed">{transcript.text}</p>
-      <p className="mt-2 text-xs font-mono text-muted-foreground">
-        {transcript.provider} · {transcript.model}
-        {transcript.language_code ? ` · ${transcript.language_code}` : ""} ·{" "}
-        {transcript.duration_ms.toFixed(0)} ms
-      </p>
-    </div>
+    <TracePanel id="decision" title="Decision" aside={crag ? `CRAG ${crag.action}` : undefined}>
+      {gate !== null && confident !== null ? (
+        <GateScale score={top} gate={gate} confident={confident} />
+      ) : (
+        <p className="text-sm text-muted-foreground">This run recorded no calibration thresholds.</p>
+      )}
+
+      <div className="mt-5 space-y-3 text-sm leading-relaxed">
+        {crag && top !== null && (
+          <p>
+            <span className="text-muted-foreground">The top rerank score </span>
+            <span className="tabular-nums">{top.toFixed(3)}</span>{" "}
+            <span className="text-muted-foreground">{CRAG_OUTCOME[crag.action]}</span>
+          </p>
+        )}
+        {crag?.rewritten_query && (
+          <div>
+            <p className="text-xs text-muted-foreground">Rewritten query</p>
+            <p className="mt-1 border-l border-foreground/20 pl-3">{crag.rewritten_query}</p>
+          </div>
+        )}
+        {trace?.abstention_reason && (
+          <p className="text-muted-foreground">
+            <span className="font-medium text-amber-800">Abstained.</span> {trace.abstention_reason}.
+          </p>
+        )}
+        {crag?.kept_strips != null && (
+          <p className="text-muted-foreground tabular-nums">{crag.kept_strips} strips kept.</p>
+        )}
+      </div>
+    </TracePanel>
   );
 }
