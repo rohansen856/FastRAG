@@ -12,6 +12,7 @@ import { TestimonialsSection } from "@/components/landing/testimonials-section";
 import { PricingSection } from "@/components/landing/pricing-section";
 import { CtaSection } from "@/components/landing/cta-section";
 import { FooterSection } from "@/components/landing/footer-section";
+import { DEVELOPER, GITHUB_REPO_URL } from "@/lib/site-config";
 
 export default function Home() {
   return (
@@ -25,10 +26,10 @@ export default function Home() {
       <MetricsSection />
       <IntegrationsSection />
       <SecuritySection />
-      <DevelopersSection />
+      {DEVELOPER && <DevelopersSection developer={DEVELOPER} />}
       <TestimonialsSection />
       <PricingSection />
-      <CtaSection />
+      {GITHUB_REPO_URL && <CtaSection />}
       <FooterSection />
     </main>
   );

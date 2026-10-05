@@ -4,16 +4,15 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { DEVELOPER, GITHUB_REPO_URL } from "@/lib/site-config";
 
 const navLinks = [
   { name: "Features", href: "/#features" },
   { name: "How it works", href: "/#how-it-works" },
-  { name: "Developers", href: "/#developers" },
+  ...(DEVELOPER ? [{ name: "Developer", href: "/#developers" }] : []),
   { name: "Docs", href: "/docs" },
   { name: "Hosting", href: "/#hosting" },
 ];
-
-const GITHUB_URL = "https://github.com/rohansen856/FastRAG";
 
 export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -86,16 +85,22 @@ export function Navigation() {
             ))}
           </div>
 
-          <div className="hidden md:flex items-center gap-4">
-            <Button
-              size="sm"
-              className={`bg-foreground hover:bg-foreground/90 text-background rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
-            >
-              <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-                Give it a ⭐
-              </a>
-            </Button>
-          </div>
+          {GITHUB_REPO_URL ? (
+            <div className="hidden md:flex items-center gap-4">
+              <Button
+                asChild
+                size="sm"
+                className={`bg-foreground hover:bg-foreground/90 text-background rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
+              >
+                <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
+                  Give it a ⭐
+                </a>
+              </Button>
+            </div>
+          ) : (
+            // Keeps the links centred when there is no star button on the right.
+            <div aria-hidden className="hidden md:block w-[7.5rem]" />
+          )}
 
           <button
             type="button"
@@ -158,14 +163,17 @@ export function Navigation() {
           }`}
           style={{ transitionDelay: isMobileMenuOpen ? "300ms" : "0ms" }}
           >
-            <Button 
-              className="flex-1 bg-foreground text-background rounded-full h-14 text-base"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-                Give it a ⭐
-              </a>
-            </Button>
+            {GITHUB_REPO_URL && (
+              <Button
+                asChild
+                className="flex-1 bg-foreground text-background rounded-full h-14 text-base"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
+                  Give it a ⭐
+                </a>
+              </Button>
+            )}
           </div>
         </div>
       </div>

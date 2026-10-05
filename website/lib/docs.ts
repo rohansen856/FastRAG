@@ -1,4 +1,4 @@
-const GITHUB_URL = "https://github.com/rohansen856/FastRAG";
+import { repoFileUrl } from "@/lib/site-config";
 
 export type DocPage = {
   slug: string;
@@ -149,29 +149,41 @@ function resolveDocPath(file: string, href: string): string {
   return parts.join("/");
 }
 
+/** `[label](url)`, or just the label when there is nowhere to link (no repository configured). */
+function link(label: string, url: string | null): string {
+  return url ? `[${label}](${url})` : label;
+}
+
 /**
- * Rewrite in-repo links for the site: .md files to /docs routes (or GitHub when the file has
- * no page), rendered diagrams to their /diagrams copies, and src links to GitHub. Relative
- * links resolve from `file`, the markdown file's path under docs/.
+ * Rewrite in-repo links for the site: .md files to /docs routes (or the repository when the
+ * file has no page), rendered diagrams to their /diagrams copies, and src links to the
+ * repository. Relative links resolve from `file`, the markdown file's path under docs/.
+ * Without NEXT_PUBLIC_GITHUB_REPO_URL, links that would leave for the repository become text.
  */
 export function rewriteDocLinks(content: string, file: string): string {
-  const withMdLinks = content.replace(/\]\(([^)]+\.md)\)/g, (_match, href: string) => {
-    if (/^[a-z]+:\/\//i.test(href)) return `](${href})`;
-    const path = resolveDocPath(file, href);
-    const slug = FILE_TO_SLUG[path];
-    return slug ? `](/docs/${slug})` : `](${GITHUB_URL}/blob/master/docs/${path})`;
+  // Paths resolve from the repository root, so a link may leave docs/ (../README.md).
+  const resolve = (href: string) => {
+    const repoPath = resolveDocPath(`docs/${file}`, href);
+    return { repoPath, docPath: repoPath.startsWith("docs/") ? repoPath.slice("docs/".length) : null };
+  };
+  const external = (href: string) => /^[a-z]+:\/\//i.test(href) || href.startsWith("/") || href.startsWith("#");
+
+  const withMdLinks = content.replace(/(!?)\[([^\]]*)\]\(([^)#\s]+\.md)(#[^)]*)?\)/g, (match, bang: string, label: string, href: string, hash = "") => {
+    if (bang || external(href)) return match;
+    const { repoPath, docPath } = resolve(href);
+    const slug = docPath ? FILE_TO_SLUG[docPath] : undefined;
+    return slug ? `[${label}](/docs/${slug}${hash})` : link(label, repoFileUrl(repoPath) && `${repoFileUrl(repoPath)}${hash}`);
   });
 
-  const withDiagrams = withMdLinks.replace(/\]\(([^)]+\.html)\)/g, (_match, href: string) => {
-    if (/^[a-z]+:\/\//i.test(href)) return `](${href})`;
-    const path = resolveDocPath(file, href);
-    return path.startsWith("diagrams/")
-      ? `](/${path})`
-      : `](${GITHUB_URL}/blob/master/docs/${path})`;
+  const withDiagrams = withMdLinks.replace(/(!?)\[([^\]]*)\]\(([^)\s]+\.html)\)/g, (match, bang: string, label: string, href: string) => {
+    if (bang || external(href)) return match;
+    const { repoPath, docPath } = resolve(href);
+    return docPath?.startsWith("diagrams/") ? `[${label}](/${docPath})` : link(label, repoFileUrl(repoPath));
   });
 
-  return withDiagrams.replace(
-    /\]\(\.\.\/src\/([^)]+)\)/g,
-    `](${GITHUB_URL}/blob/master/src/$1)`,
+  // Anything else that climbs out of docs/ (source files, config, other apps) lives only in
+  // the repository.
+  return withDiagrams.replace(/(!?)\[([^\]]*)\]\(((?:\.\.\/)+[^)\s]*)\)/g, (match, bang: string, label: string, href: string) =>
+    bang ? match : link(label, repoFileUrl(resolve(href).repoPath)),
   );
 }

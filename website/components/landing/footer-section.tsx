@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { AnimatedWave } from "./animated-wave";
+import { DEVELOPER, GITHUB_REPO_LABEL, GITHUB_REPO_URL } from "@/lib/site-config";
 
-const GITHUB_URL = "https://github.com/rohansen856/FastRAG";
+type FooterLink = { name: string; href: string; badge?: string; external?: boolean };
 
-const footerLinks: Record<
-  string,
-  { name: string; href: string; badge?: string; external?: boolean }[]
-> = {
+const developerLink = DEVELOPER
+  ? DEVELOPER.github ?? DEVELOPER.linkedin ?? DEVELOPER.website ?? "#developers"
+  : null;
+
+const footerLinks: Record<string, FooterLink[]> = {
   Product: [
     { name: "Features", href: "#features" },
     { name: "How it works", href: "#how-it-works" },
@@ -20,10 +22,10 @@ const footerLinks: Record<
     { name: "Guardrails", href: "/docs/guardrails" },
     { name: "Benchmarks", href: "/docs/benchmarking" },
     { name: "Latency", href: "/docs/latency" },
-    { name: "The team", href: "#developers" },
+    ...(DEVELOPER ? [{ name: "The developer", href: "/#developers" }] : []),
   ],
   Source: [
-    { name: "Repository", href: GITHUB_URL, external: true },
+    ...(GITHUB_REPO_URL ? [{ name: "Repository", href: GITHUB_REPO_URL, external: true }] : []),
     { name: "Docs", href: "/docs" },
     {
       name: "Running locally",
@@ -38,18 +40,23 @@ const footerLinks: Record<
       href: "/docs/architecture",
     },
   ],
-  Team: [
-    { name: "Rohan Sen", href: "https://github.com/rohansen856", external: true },
-    { name: "Vansh Gularia", href: "https://github.com/vanshg101", external: true },
-    { name: "Nitin Pandey", href: "https://github.com/Nitin192005", external: true },
-  ],
+  ...(DEVELOPER && developerLink
+    ? {
+        Developer: [
+          {
+            name: DEVELOPER.name,
+            href: developerLink,
+            external: developerLink.startsWith("http"),
+          },
+        ],
+      }
+    : {}),
 };
 
 const socialLinks = [
-  { name: "GitHub", href: GITHUB_URL },
-  { name: "Rohan", href: "https://www.linkedin.com/in/rohansen856" },
-  { name: "Vansh", href: "https://www.linkedin.com/in/vansh-gularia-bb6078243/" },
-  { name: "Nitin", href: "https://www.linkedin.com/in/nitin-pandey-dev" },
+  ...(GITHUB_REPO_URL ? [{ name: "GitHub", href: GITHUB_REPO_URL }] : []),
+  ...(DEVELOPER?.linkedin ? [{ name: "LinkedIn", href: DEVELOPER.linkedin }] : []),
+  ...(DEVELOPER?.website ? [{ name: "Website", href: DEVELOPER.website }] : []),
 ];
 
 export function FooterSection() {
@@ -123,14 +130,16 @@ export function FooterSection() {
             2026 FastRAG. Open source.
           </p>
 
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors font-mono"
-          >
-            github.com/rohansen856/FastRAG
-          </a>
+          {GITHUB_REPO_URL && (
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-mono"
+            >
+              {GITHUB_REPO_LABEL}
+            </a>
+          )}
         </div>
       </div>
     </footer>

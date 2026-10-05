@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Check } from "lucide-react";
+import { repoFileUrl } from "@/lib/site-config";
 
 const profiles = [
   {
@@ -20,7 +21,7 @@ const profiles = [
       "Benchmark target: <200ms retrieval P95",
     ],
     cta: "See local setup",
-    href: "https://github.com/rohansen856/FastRAG/blob/master/docs/local-setup.md",
+    href: "/docs/running-locally",
     popular: false,
   },
   {
@@ -41,7 +42,7 @@ const profiles = [
       "Sparse retrieval off (512 MB RAM)",
     ],
     cta: "See cloud env",
-    href: "https://github.com/rohansen856/FastRAG/blob/master/.env.cloud.example",
+    href: repoFileUrl(".env.cloud.example") ?? "/docs/deployment",
     popular: true,
   },
   {
@@ -61,7 +62,7 @@ const profiles = [
       "Golden gate + bench-latency both profiles",
     ],
     cta: "Read providers",
-    href: "https://github.com/rohansen856/FastRAG/blob/master/docs/providers.md",
+    href: "/docs/providers",
     popular: false,
   },
 ];
@@ -125,8 +126,7 @@ export function PricingSection() {
 
               <a
                 href={plan.href}
-                target="_blank"
-                rel="noopener noreferrer"
+                {...(plan.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 className={`w-full py-4 flex items-center justify-center gap-2 text-sm font-medium transition-all group ${
                   plan.popular
                     ? "bg-foreground text-primary-foreground hover:bg-foreground/90"
@@ -144,12 +144,10 @@ export function PricingSection() {
           Cloud hops will not meet the local 200ms retrieval target - that number is measured on
           the local profile only.{" "}
           <a
-            href="https://github.com/rohansen856/FastRAG/blob/master/docs/latency.md"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/docs/latency"
             className="underline underline-offset-4 hover:text-foreground transition-colors"
           >
-            Read latency.md
+            Read the latency notes
           </a>
         </p>
       </div>
