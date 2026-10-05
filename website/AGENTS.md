@@ -17,6 +17,8 @@ recorded examples in `public/query-examples/`.
 
 Proxies API via `app/api/rag/[...path]/route.ts`.
 
-Env (`.env.local` from `.env.example`): `FASTRAG_API_URL`, `FASTRAG_QUERY_TOKEN` (server-only).
+Env (`.env.local` from `.env.example`): `FASTRAG_API_URL`, `FASTRAG_QUERY_TOKEN` (server-only);
+optional public `NEXT_PUBLIC_GITHUB_REPO_URL` and `NEXT_PUBLIC_DEVELOPER` (JSON), read in
+`lib/site-config.ts`. Unset hides the repo links or the developer section.
 
 Repo-wide agent notes: [../AGENTS.md](../AGENTS.md).

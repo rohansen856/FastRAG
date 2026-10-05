@@ -15,7 +15,7 @@ web
 - **End users asking questions** about FastRAG itself, typed or spoken, in English or an Indian
   language. They want an answer they can check, and they get its sources with it.
 
-The team is Rohan Sen, Vansh Gularia and Nitin Pandey (credited in the site footer).
+The site credits one developer, set by `NEXT_PUBLIC_DEVELOPER` in `website/.env`.
 
 ## Product Purpose
 

@@ -138,6 +138,16 @@ Neither is prefixed `NEXT_PUBLIC_`. Proxy route `app/api/rag/[...path]/route.ts`
 token server-side, so the landing origin does **not** need to be in `FASTRAG_CORS_ORIGINS`
 unless you bypass the proxy and call the API from the browser.
 
+The landing project also reads two optional public settings, inlined at build time (redeploy
+after changing them). Leave either unset to hide what depends on it:
+
+- `NEXT_PUBLIC_GITHUB_REPO_URL` - the repository (e.g. `https://github.com/owner/FastRAG`): the
+  header star button, footer and call-to-action links, and docs links to repository files.
+  `NEXT_PUBLIC_GITHUB_REPO_BRANCH` sets the branch those file links use (default `master`).
+- `NEXT_PUBLIC_DEVELOPER` - the developer credited in the Developer section and footer, as one
+  line of JSON: `{"name":"…","role":"…","bio":"…","photo":"/developers/x.png","github":"…",
+  "linkedin":"…","website":"…","email":"…"}`. Only `name` is required.
+
 **Query overrides:** `.env.cloud.example` sets `FASTRAG_ALLOW_QUERY_OVERRIDES=false`.
 Keep that on production API deploys. See [query-trace.md](query-trace.md).
 
